@@ -102,7 +102,7 @@ export default function DashboardProductDetails({ params }: any) {
   };
 
   // functionality for uploading main image file
-  const uploadFile = async (file: any) => {
+  const uploadFile = async (file: any): Promise<string> => {
     const formData = new FormData();
     formData.append("uploadedFile", file);
 
@@ -115,6 +115,10 @@ export default function DashboardProductDetails({ params }: any) {
       if (response.ok) {
         const data = await response.json();
         console.log("Main image uploaded:", data);
+        // Server sanitizes the filename — use the returned name
+        if (data?.fileName) {
+          return data.fileName;
+        }
       } else {
         toast.error("File upload unsuccessful.");
       }
@@ -122,6 +126,8 @@ export default function DashboardProductDetails({ params }: any) {
       console.error("There was an error while during request sending:", error);
       toast.error("There was an error during request sending");
     }
+
+    return file.name;
   };
 
   // refresh the gallery image list for this product
@@ -149,9 +155,13 @@ export default function DashboardProductDetails({ params }: any) {
         return;
       }
 
+      const uploadData = await uploadResponse.json();
+      // Server sanitizes the filename — use the returned name for the DB record
+      const savedName = uploadData?.fileName || file.name;
+
       const createResponse = await apiClient.post("/api/images", {
         productID: id,
-        image: file.name,
+        image: savedName,
       });
       if (!createResponse.ok) {
         toast.error("Failed to add image to gallery");
@@ -464,8 +474,12 @@ export default function DashboardProductDetails({ params }: any) {
               const selectedFile = e.target.files[0];
 
               if (selectedFile) {
-                uploadFile(selectedFile);
-                setProduct({ ...product!, mainImage: selectedFile.name });
+                uploadFile(selectedFile).then((savedName) => {
+                  setProduct((current) => ({
+                    ...current!,
+                    mainImage: savedName,
+                  }));
+                });
               }
             }}
           />

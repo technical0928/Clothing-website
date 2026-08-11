@@ -18,7 +18,8 @@ const ProductsSection = async () => {
   
   try {
     // sending API request for getting all products
-    const data = await apiClient.get("/api/products", {
+    // limit=100 so the homepage shows every product (not just the first 12)
+    const data = await apiClient.get("/api/products?limit=100", {
       next: { revalidate: 30, tags: ["products"] },
     });
     

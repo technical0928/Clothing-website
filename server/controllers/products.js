@@ -283,9 +283,13 @@ const getAllProducts = asyncHandler(async (request, response) => {
     // Exact token matching on comma-separated fields needs post-processing, so
     // fetch without pagination when a size/color filter is active.
     const needsTokenFilter = Boolean(sizeFilterValue) || Boolean(colorFilterValue);
+    // Optional limit override (e.g. the homepage asks for all products).
+    const requestedLimit = Number(request.query.limit);
+    const pageSize =
+      requestedLimit > 0 && requestedLimit <= 100 ? requestedLimit : 12;
     const findManyOptions = {
       skip: needsTokenFilter ? undefined : (validatedPage - 1) * 10,
-      take: needsTokenFilter ? undefined : 12,
+      take: needsTokenFilter ? undefined : pageSize,
       include: {
         category: {
           select: {
@@ -326,7 +330,7 @@ const getAllProducts = asyncHandler(async (request, response) => {
 
       // Re-apply pagination after token filtering
       const start = (validatedPage - 1) * 10;
-      products = products.slice(start, start + 12);
+      products = products.slice(start, start + pageSize);
     } else if (categoryFilterValue) {
       // Resolve the category to its exact id so filtering is precise.
       // (SQLite LIKE used by `contains` is case-insensitive and would match

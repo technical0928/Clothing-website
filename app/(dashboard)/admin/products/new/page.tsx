@@ -125,7 +125,7 @@ const AddNewProduct = () => {
   };
 
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("uploadedFile", file);
 
@@ -142,12 +142,19 @@ const AddNewProduct = () => {
       if (response.ok) {
         const data = await response.json();
         console.log("File uploaded successfully", data);
+        // The server sanitizes the filename (safe for the web server),
+        // so use the returned name instead of the original file name.
+        if (data?.fileName) {
+          return data.fileName;
+        }
       } else {
         console.error("File upload unsuccessful", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Error happened while sending request:", error);
     }
+
+    return file.name;
   };
 
   useEffect(() => {
@@ -405,8 +412,12 @@ const AddNewProduct = () => {
               const selectedFile = e.target.files?.[0];
               if (!selectedFile) return;
 
-              uploadFile(selectedFile);
-              setProduct({ ...product, mainImage: selectedFile.name });
+              uploadFile(selectedFile).then((savedName) => {
+                setProduct((current) => ({
+                  ...current,
+                  mainImage: savedName,
+                }));
+              });
             }}
           />
           {imagePreviewUrl ? (
