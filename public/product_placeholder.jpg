@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500" fill="none">
+  <rect width="400" height="500" fill="#F5F5F4"/>
+  <!-- Coat Hanger Icon -->
+  <path d="M200 160 C185 160 175 148 175 135 C175 120 188 110 200 110 C212 110 225 120 225 135 C225 142 220 148 212 150 L212 165 L275 195 C285 200 285 210 275 215 L200 240 L125 215 C115 210 115 200 125 195 L188 165 L188 150 C182 147 175 140 175 135 Z" stroke="#78716C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- T-shirt / Garment Silhouette -->
+  <path d="M140 200 L110 225 L130 260 L145 250 L145 360 C145 365 149 370 155 370 L245 370 C251 370 255 365 255 360 L255 250 L270 260 L290 225 L260 200 C240 215 215 215 195 200 C175 215 155 215 140 200 Z" fill="#E7E5E4" stroke="#A8A29E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="200" y="410" text-anchor="middle" fill="#78716C" font-family="system-ui, sans-serif" font-size="16" font-weight="500" letter-spacing="1">STYLEHUB APPAREL</text>
+</svg>
