@@ -18,6 +18,18 @@ const nextConfig = {
     env: {
         NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     },
+    async rewrites() {
+      // Uploaded images are served by the API (Next.js production only serves
+      // files that existed at build time). Proxy /uploads/* to the API so the
+      // storefront can render uploads with a plain relative path.
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+      return [
+        {
+          source: '/uploads/:path*',
+          destination: `${apiBase}/uploads/:path*`,
+        },
+      ];
+    },
     async headers() {
       return [
         {

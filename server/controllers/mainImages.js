@@ -1,5 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = require("../utills/db"); // ✅ Use shared connection
+const fs = require('fs');
+const path = require('path');
+
+// Uploads live in public/uploads/ and are served by the API at /uploads/*
+// (Next.js production only serves files that existed at build time).
+const UPLOADS_DIR = path.join(__dirname, "..", "..", "public", "uploads");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 /**
  * Make an uploaded filename safe for the web server.
@@ -30,18 +37,19 @@ async function uploadMainImage(req, res) {
     // Get file from a request
     const uploadedFile = req.files.uploadedFile;
 
-    // Save under a safe, unique filename
+    // Save under a safe, unique filename in the uploads directory
     const finalFileName = sanitizeFileName(uploadedFile.name);
+    const relativePath = `uploads/${finalFileName}`;
 
     // Using mv method for moving file to the directory on the server
-    uploadedFile.mv('../public/' + finalFileName, (err) => {
+    uploadedFile.mv(path.join(UPLOADS_DIR, finalFileName), (err) => {
       if (err) {
         return res.status(500).send(err);
       }
   
       res.status(200).json({
         message: "Fajl je uspešno otpremljen",
-        fileName: finalFileName
+        fileName: relativePath
       });
     });
   }

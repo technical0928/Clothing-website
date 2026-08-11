@@ -119,6 +119,11 @@ app.use("/api/users/email", authLimiter); // For login attempts via email lookup
 // Apply admin rate limiting to admin routes
 
 
+// Serve uploaded product images straight from disk. Next.js production
+// only serves files that existed at build time, so newly uploaded images
+// are served here instead (works for files added at any time).
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+
 app.use("/api/products", productsRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/images", productImagesRouter);
