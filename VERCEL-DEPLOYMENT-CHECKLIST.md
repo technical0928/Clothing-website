@@ -7,15 +7,19 @@
 
 ## ⚠️ THE MOST IMPORTANT FACT
 
-**Vercel only hosts the Next.js frontend. The Express API (`server/`) cannot run on Vercel.**
-It is a long-running Node server (port 3001) that Vercel does not support.
+**This project = Next.js frontend (repo root) + Express API (`server/` folder).**
 
-You need **two hosts**:
+Two hosting options:
 
-| Part | Host | Example |
-|---|---|---|
-| Website (Next.js, this repo) | **Vercel** | `https://noor-e-multan.vercel.app` |
-| API (Express, `server/`) | Render / Railway / Fly.io / VPS | `https://noor-e-multan-api.onrender.com` |
+| Option | Website | API | Card needed |
+|---|---|---|---|
+| **A — Recommended** | Vercel | Render (free) | Render needs card for some new accounts |
+| **B — All on Vercel** | Vercel (root `/`) | Vercel (root `server/`, serverless) | ✅ No card — one platform |
+
+**Option B is now fully supported**: the API was converted to a Vercel serverless
+function (`server/api/index.js` + `server/vercel.json`). On Vercel the app is exported
+instead of `app.listen`, logs go to stdout (read-only FS), uploads go to `/tmp`
+(ephemeral), and `.env` writes are skipped.
 
 The frontend reaches the API through `NEXT_PUBLIC_API_BASE_URL` (env var). The API allows
 the frontend through CORS using `FRONTEND_URL` + `NEXTAUTH_URL` env vars.
