@@ -28,7 +28,7 @@ const HeaderTop = () => {
   return (
     <div className="h-10 text-white bg-stone-900 max-lg:px-5 max-lg:h-16 max-[573px]:px-0">
       <div className="flex justify-between h-full max-lg:flex-col max-lg:justify-center max-lg:items-center max-w-screen-2xl mx-auto px-12 max-[573px]:px-0">
-        <ul className="flex items-center h-full gap-x-5 max-[370px]:text-sm max-[370px]:gap-x-2">
+        <ul className="flex items-center h-full gap-x-5 max-md:flex-wrap max-md:justify-center max-[370px]:text-sm max-[370px]:gap-x-2">
           <li className="flex items-center gap-x-2 font-semibold">
             <FaWhatsapp className="text-amber-400" />
             <a href="https://wa.me/923017795702" target="_blank" rel="noreferrer" className="hover:text-amber-300">
@@ -48,7 +48,7 @@ const HeaderTop = () => {
             </a>
           </li>
         </ul>
-        <ul className="flex items-center gap-x-5 h-full max-[370px]:text-sm max-[370px]:gap-x-2 font-semibold">
+        <ul className="flex items-center gap-x-5 h-full max-md:flex-wrap max-md:justify-center max-[370px]:text-sm max-[370px]:gap-x-2 font-semibold">
           {!session ? ( 
           <>
           <li className="flex items-center">
@@ -65,7 +65,11 @@ const HeaderTop = () => {
           </li>
           </>
           ) :  (<>
-          <span className="ml-10 text-base">{session.user?.email}</span>
+          {session.user?.name && (
+            <span className="ml-10 text-base max-md:ml-0 max-md:text-sm">
+              Hi, {String(session.user.name).split(" ")[0]}
+            </span>
+          )}
           <li className="flex items-center">
             <Link href="/profile" className="flex items-center gap-x-2 font-semibold hover:text-amber-300">
               <FaRegUser className="text-white" />

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import { getServerSession } from "next-auth/next";
@@ -34,6 +35,10 @@ export default async function RootLayout({
   const session = await getServerSession();
   return (
     <html lang="en" data-theme="light">
+      {/* Apply the saved theme before first paint so dark mode has no flash */}
+      <Script id="theme-init" strategy="beforeInteractive">
+        {`(function(){try{var t=localStorage.getItem("noor-theme");if(t==="dark"){document.documentElement.setAttribute("data-theme","dark");}}catch(e){}})();`}
+      </Script>
       <body className={`${body.variable} ${display.variable} font-sans`}>
         <SessionProvider session={session}>
           <SessionTimeoutWrapper />

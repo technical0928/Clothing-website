@@ -27,8 +27,10 @@ export const authOptions: any = {
             if (isPasswordCorrect) {
               return {
                 id: user.id,
+                name: user.name || null,
                 email: user.email,
                 role: user.role || "user",
+                image: user.image || null,
               };
             }
           }
@@ -70,13 +72,21 @@ export const authOptions: any = {
       }
       return true;
     },
-    async jwt({ token, user }: any) {
+    async jwt({ token, user, trigger, session }: any) {
       if (user) {
         token.role = user.role;
         token.id = user.id;
+        token.image = user.image || null;
         token.iat = Math.floor(Date.now() / 1000);
       }
-      
+
+      // Persist profile updates (e.g. avatar upload) into the JWT so they
+      // survive page reloads — NextAuth re-encodes the token after this
+      // callback, so the updated image lands in the session cookie.
+      if (trigger === "update" && session && "image" in session) {
+        token.image = session.image || null;
+      }
+
       const now = Math.floor(Date.now() / 1000);
       const tokenAge = now - (token.iat as number);
       const maxAge = 15 * 60;
@@ -91,6 +101,7 @@ export const authOptions: any = {
       if (token && session.user) {
         session.user.role = token.role as string;
         session.user.id = token.id as string;
+        session.user.image = (token.image as string) || null;
       }
       return session;
     },

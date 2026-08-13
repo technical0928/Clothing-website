@@ -2,12 +2,14 @@
 import { CustomButton, SectionTitle } from "@/components";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 const RegisterPage = () => {
   const [error, setError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
@@ -58,6 +60,12 @@ const RegisterPage = () => {
     if (confirmPassword !== password) {
       setError("Passwords are not equal");
       toast.error("Passwords are not equal");
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError("Please accept our terms and privacy policy");
+      toast.error("Please accept our terms and privacy policy");
       return;
     }
 
@@ -188,7 +196,7 @@ const RegisterPage = () => {
                     id="password"
                     name="password"
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     required
                     className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-amber-600 sm:text-sm sm:leading-6"
                   />
@@ -207,7 +215,7 @@ const RegisterPage = () => {
                     id="confirmpassword"
                     name="confirmpassword"
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     required
                     className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-amber-600 sm:text-sm sm:leading-6"
                   />
@@ -220,6 +228,8 @@ const RegisterPage = () => {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
                   />
                   <label
@@ -244,6 +254,16 @@ const RegisterPage = () => {
                 <p className="text-red-600 text-center text-[16px] my-4">
                   {error && error}
                 </p>
+              </div>
+
+              <div className="text-center text-sm text-gray-600">
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  className="font-semibold text-black hover:text-amber-700"
+                >
+                  Login
+                </Link>
               </div>
             </form>
           </div>

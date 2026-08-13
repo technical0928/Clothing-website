@@ -19,6 +19,9 @@ const notificationsRouter = require('./routes/notifications');
 const merchantRouter = require('./routes/merchant'); // Add this line
 const bulkUploadRouter = require('./routes/bulkUpload');
 const statsRouter = require('./routes/stats');
+const passwordResetRouter = require('./routes/passwordReset');
+const emailSettingsRouter = require('./routes/emailSettings');
+const contactRouter = require('./routes/contact');
 var cors = require("cors");
 
 // Import logging middleware
@@ -138,6 +141,9 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/merchants", merchantRouter); 
 app.use("/api/bulk-upload", bulkUploadRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/password-reset", passwordResetRouter);
+app.use("/api/settings", emailSettingsRouter);
+app.use("/api/contact", contactRouter);
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {

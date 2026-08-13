@@ -2,7 +2,7 @@ const supportSections = [
   {
     id: "contact",
     title: "Contact Us",
-    body: "For order help, sizing questions, or product details, message Noor-e-Multan on WhatsApp or email support@noor-e-multan.example. Our team replies with clear next steps.",
+    body: "For order help, sizing questions, or product details, message Noor-e-Multan on WhatsApp (+92 301 7795702) or use the contact page to send a message directly to our team.",
   },
   {
     id: "how-to-order",

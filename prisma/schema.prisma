@@ -56,10 +56,26 @@ model User {
   city          String?
   country       String?
   postalCode    String?
+  image         String?
   Wishlist      Wishlist[]
   notifications Notification[]
+  passwordResetTokens PasswordResetToken[]
   // Back relation for bulk upload batches
   bulkUploadBatches bulk_upload_batch[] @relation("UserBatches")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  token      String    @unique // stores a SHA-256 hash of the OTP/reset code
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  usedAt     DateTime?
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+
+  @@index([userId])
 }
 
 model Customer_order {
@@ -106,6 +122,18 @@ model Wishlist {
   productId String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 enum NotificationType {

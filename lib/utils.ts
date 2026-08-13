@@ -71,7 +71,7 @@ export const navigation = {
     { name: "Fabric Care", href: "/support#fabric-care" },
   ],
   help: [
-    { name: "Contact Us", href: "/support#contact" },
+    { name: "Contact Us", href: "/contact" },
     { name: "How to Order", href: "/support#how-to-order" },
     { name: "FAQ", href: "/support#faq" },
   ],

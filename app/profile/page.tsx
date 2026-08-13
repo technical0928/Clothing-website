@@ -2,6 +2,7 @@
 import { SectionTitle } from "@/components";
 import { Loader } from "@/components/Loader";
 import apiClient from "@/lib/api";
+import config from "@/lib/config";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ const emptyProfile = {
   city: "",
   country: "",
   postalCode: "",
+  image: "",
 };
 
 const emptyPasswordForm = {
@@ -26,9 +28,9 @@ const emptyPasswordForm = {
 };
 
 const ProfilePage = () => {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const sessionUser = (session as any)?.user as
-    | { id?: string; email?: string; role?: string }
+    | { id?: string; email?: string; role?: string; image?: string }
     | undefined;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,7 @@ const ProfilePage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -59,6 +62,7 @@ const ProfilePage = () => {
           city: user.city || "",
           country: user.country || "",
           postalCode: user.postalCode || "",
+          image: user.image || "",
         });
       })
       .catch(() => toast.error("Could not load your profile. Please try again later."))
@@ -72,6 +76,7 @@ const ProfilePage = () => {
       const response = await apiClient.put(`/api/users/${sessionUser.id}`, profile);
       if (response.ok) {
         toast.success("Profile updated successfully");
+        update({ image: profile.image || null });
         router.refresh();
       } else {
         const errorData = await response.json();
@@ -145,6 +150,34 @@ const ProfilePage = () => {
   const updateProfile = (field: keyof typeof emptyProfile, value: string) =>
     setProfile((current) => ({ ...current, [field]: value }));
 
+  const uploadPhoto = async (file: File) => {
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("uploadedFile", file);
+      const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      const data = await response.json();
+      if (!data?.fileName) {
+        throw new Error("No file name returned");
+      }
+      // Server sanitizes the filename; store the safe relative path.
+      setProfile((current) => ({ ...current, image: data.fileName }));
+      update({ image: data.fileName });
+      toast.success("Profile photo uploaded — click Save changes to keep it");
+    } catch (error) {
+      console.error("Photo upload failed:", error);
+      toast.error("Photo upload failed. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const updatePassword = (field: keyof typeof emptyPasswordForm, value: string) =>
     setPasswordForm((current) => ({ ...current, [field]: value }));
 
@@ -170,6 +203,57 @@ const ProfilePage = () => {
             My Orders
           </Link>
         </div>
+
+        {/* Profile photo */}
+        <section className="mt-10 rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900">Profile photo</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Choose a picture to show on your account and orders.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-5 p-6">
+            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-amber-600 bg-stone-100">
+              {profile.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/${profile.image}`}
+                  alt="Profile photo preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <FaUser className="h-10 w-10 text-stone-400" />
+              )}
+            </div>
+            <div className="flex flex-col items-start gap-y-3">
+              <input
+                id="profile-photo"
+                type="file"
+                accept="image/*"
+                disabled={uploadingPhoto}
+                className="block w-full max-w-xs text-sm text-stone-600 file:mr-4 file:rounded-md file:border-0 file:bg-stone-900 file:px-4 file:py-2 file:text-sm file:font-bold file:uppercase file:text-white hover:file:bg-stone-800"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadPhoto(file);
+                  e.target.value = "";
+                }}
+              />
+              {uploadingPhoto && <span className="text-sm text-stone-500">Uploading...</span>}
+              {profile.image && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfile((current) => ({ ...current, image: "" }));
+                    update({ image: null });
+                  }}
+                  className="text-sm font-semibold text-red-600 hover:text-red-700"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Account details */}
         <section className="mt-10 rounded-lg border border-gray-200 bg-white shadow-sm">

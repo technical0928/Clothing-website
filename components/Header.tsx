@@ -20,6 +20,7 @@ import Link from "next/link";
 import CartElement from "./CartElement";
 import NotificationBell from "./NotificationBell";
 import HeartElement from "./HeartElement";
+import ThemeToggle from "./ThemeToggle";
 import { signOut } from "next-auth/react";
 import toast from "react-hot-toast";
 import { useWishlistStore } from "@/app/_zustand/wishlistStore";
@@ -31,7 +32,7 @@ const NAV_LINKS = [
   { href: "/shop/men", label: "Men" },
   { href: "/shop/women", label: "Women" },
   { href: "/about", label: "About" },
-  { href: "/support", label: "Contact" },
+  { href: "/contact", label: "Contact" },
 ];
 
 const Header = () => {
@@ -66,7 +67,8 @@ const Header = () => {
             </div>
           </Link>
           <SearchInput />
-          <div className="flex gap-x-10 items-center">
+          <div className="flex gap-x-6 items-center max-md:gap-x-4">
+            <ThemeToggle />
             <NotificationBell />
             <HeartElement wishQuantity={wishQuantity} />
             <CartElement />
@@ -93,12 +95,23 @@ const Header = () => {
             <div className="flex items-center gap-x-6">
               {session?.user && (
                 <div className="hidden items-center gap-x-6 md:flex">
-                  <Link
-                    href="/profile"
-                    className="text-sm font-semibold uppercase tracking-wide text-stone-700 hover:text-amber-700"
-                  >
-                    My Profile
-                  </Link>
+                  {(session.user as any)?.image ? (
+                    <Link href="/profile" aria-label="My Profile">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/${(session.user as any).image}`}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full border border-amber-600 object-cover"
+                      />
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/profile"
+                      className="text-sm font-semibold uppercase tracking-wide text-stone-700 hover:text-amber-700"
+                    >
+                      My Profile
+                    </Link>
+                  )}
                   <Link
                     href="/orders"
                     className="text-sm font-semibold uppercase tracking-wide text-stone-700 hover:text-amber-700"
@@ -171,17 +184,27 @@ const Header = () => {
             </span>
             <span className="text-sm italic text-stone-500">Unique Blend of Culture</span>
           </Link>
-          <div className="flex gap-x-5 items-center">
+          <div className="flex gap-x-4 items-center">
+            <ThemeToggle />
             <NotificationBell />
             <div className="dropdown dropdown-end">
               <div tabIndex={0} role="button" className="w-10">
-                <Image
-                  src="/randomuser.jpg"
-                  alt="admin profile photo"
-                  width={30}
-                  height={30}
-                  className="w-full h-full rounded-full"
-                />
+                {(session as any)?.user?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/${(session as any).user.image}`}
+                    alt="admin profile photo"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <Image
+                    src="/randomuser.jpg"
+                    alt="admin profile photo"
+                    width={30}
+                    height={30}
+                    className="w-full h-full rounded-full"
+                  />
+                )}
               </div>
               <ul
                 tabIndex={0}

@@ -17,7 +17,7 @@ const getAllUsers = asyncHandler(async (request, response) => {
 });
 
 const createUser = asyncHandler(async (request, response) => {
-  const { email, password, role, name, lastname, phone, address, city, country, postalCode } = request.body;
+  const { email, password, role, name, lastname, phone, address, city, country, postalCode, image } = request.body;
 
   // Basic validation
   if (!email || !password) {
@@ -49,6 +49,7 @@ const createUser = asyncHandler(async (request, response) => {
       city: city || null,
       country: country || null,
       postalCode: postalCode || null,
+      image: image || null,
     },
   });
   // Exclude password from response
@@ -57,7 +58,7 @@ const createUser = asyncHandler(async (request, response) => {
 
 const updateUser = asyncHandler(async (request, response) => {
   const { id } = request.params;
-  const { email, password, role, name, lastname, phone, address, city, country, postalCode } = request.body;
+  const { email, password, role, name, lastname, phone, address, city, country, postalCode, image } = request.body;
 
   if (!id) {
     throw new AppError("User ID is required", 400);
@@ -88,11 +89,19 @@ const updateUser = asyncHandler(async (request, response) => {
     }
     updateData.password = await bcrypt.hash(password, 14);
   }
-  if (role !== undefined && role !== null) {
+  if (role !== undefined && role !== null && role !== existingUser.role) {
+    // Prevent removing the LAST admin account — otherwise nobody could log
+    // into the admin panel (or receive password reset codes) ever again.
+    if (existingUser.role === "admin" && role !== "admin") {
+      const adminCount = await prisma.user.count({ where: { role: "admin" } });
+      if (adminCount <= 1) {
+        throw new AppError("Cannot remove the last admin account", 400);
+      }
+    }
     updateData.role = role;
   }
   // Profile fields (only update keys that were explicitly sent)
-  const profileFields = { name, lastname, phone, address, city, country, postalCode };
+  const profileFields = { name, lastname, phone, address, city, country, postalCode, image };
   for (const [field, value] of Object.entries(profileFields)) {
     if (value !== undefined && value !== null) {
       const trimmed = String(value).trim();
