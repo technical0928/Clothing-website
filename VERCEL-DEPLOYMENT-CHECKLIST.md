@@ -58,7 +58,12 @@ the frontend through CORS using `FRONTEND_URL` + `NEXTAUTH_URL` env vars.
 Create an account at render.com → **New → Web Service** → connect the GitHub repo.
 
 - **Root Directory:** `server`
-- **Build Command:** `npm install && npx prisma generate --schema prisma/schema.prisma`
+- **Build Command:** `npm install --ignore-scripts && npx prisma generate --schema prisma/schema.prisma`
+  - ⚠️ `--ignore-scripts` is REQUIRED — the `express-rate-limit` package ships a
+    `prepare` script that calls `husky`, which is not installed, so a plain
+    `npm install` fails the build with `'husky' is not recognized`.
+    With `--ignore-scripts` the package installs fine; the Prisma client is then
+    generated explicitly by the `prisma generate` step.
 - **Start Command:** `npm start` (runs `node app.js`)
 - **Instance Type:** Free
 
@@ -148,6 +153,7 @@ Do NOT use `prisma migrate reset` in production — it deletes data.
 
 | Issue | Why | Fix |
 |---|---|---|
+| API build fails with `'husky' is not recognized` | express-rate-limit `prepare` script runs husky | Use `npm install --ignore-scripts` in the Render build command |
 | Login says "Invalid email or password" | `NEXTAUTH_URL` mismatch | Set exact Vercel domain in Vercel env |
 | Products don't show after admin add | ISR caches 30s | Wait 30s or click a revalidate trigger |
 | New admin-uploaded images vanish | Render free disk ephemeral | Use Cloudinary/S3 for uploads (optional) |
