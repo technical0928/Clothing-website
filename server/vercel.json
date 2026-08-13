@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "npm install --ignore-scripts",
   "functions": {
     "api/index.js": {
       "maxDuration": 30
