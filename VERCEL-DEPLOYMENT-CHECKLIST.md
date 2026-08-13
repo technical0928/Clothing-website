@@ -157,7 +157,8 @@ Do NOT use `prisma migrate reset` in production — it deletes data.
 
 | Issue | Why | Fix |
 |---|---|---|
-| API build fails with `'husky' is not recognized` | express-rate-limit `prepare` script runs husky | Use `npm install --ignore-scripts` in the Render build command |
+| API build fails with `'husky' is not recognized` | express-rate-limit `prepare` script runs husky | Use `npm install --ignore-scripts` in the Render build command (already in `server/vercel.json` + `server/.npmrc`) |
+| API build fails `prisma: command not found` (exit 127, only ~32 packages installed) | Broken `server/package-lock.json` — 15 pnpm-style `link` entries pointing into the root pnpm store don't exist on Vercel | Lockfile regenerated clean (commit `0e8a2d5`) — do NOT regenerate it with local npm 11 while the root `pnpm-lock.yaml` exists, or the links come back |
 | Login says "Invalid email or password" | `NEXTAUTH_URL` mismatch | Set exact Vercel domain in Vercel env |
 | Products don't show after admin add | ISR caches 30s | Wait 30s or click a revalidate trigger |
 | New admin-uploaded images vanish | Render free disk ephemeral | Use Cloudinary/S3 for uploads (optional) |
