@@ -5,8 +5,17 @@ const path = require('path');
 
 // Uploads live in public/uploads/ and are served by the API at /uploads/*
 // (Next.js production only serves files that existed at build time).
-const UPLOADS_DIR = path.join(__dirname, "..", "..", "public", "uploads");
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// On Vercel the filesystem is read-only outside /tmp, so uploaded files go
+// to the OS temp dir (they are ephemeral — demo product images are served
+// from git instead and always work).
+const UPLOADS_DIR = process.env.VERCEL
+  ? path.join(require("os").tmpdir(), "uploads")
+  : path.join(__dirname, "..", "..", "public", "uploads");
+try {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+} catch (error) {
+  console.error("[mainImages] Could not create uploads dir:", error.message);
+}
 
 /**
  * Make an uploaded filename safe for the web server.

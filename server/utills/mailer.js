@@ -100,8 +100,17 @@ function configureMailer(settings = {}) {
     }
   });
 
-  const newContent = updated.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
-  fs.writeFileSync(ENV_PATH, newContent, "utf8");
+  // Persist to disk only when the filesystem is writable (local/Render).
+  // On Vercel the filesystem is read-only, so settings live for the current
+  // process only — set SMTP vars in the Vercel env instead.
+  if (!process.env.VERCEL) {
+    const newContent = updated.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+    try {
+      fs.writeFileSync(ENV_PATH, newContent, "utf8");
+    } catch (error) {
+      console.error("[mailer] Could not persist SMTP settings:", error.message);
+    }
+  }
 
   // Apply to the running process
   keys.forEach((key) => {

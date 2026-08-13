@@ -2,12 +2,9 @@ const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '..', 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-  console.log('Created logs directory:', logsDir);
-}
+// Vercel's filesystem is read-only (except /tmp), so file logging would
+// crash the serverless function. On Vercel we fall back to stdout logging.
+const isVercel = Boolean(process.env.VERCEL);
 
 // Custom format for logging
 morgan.token('reqId', (req) => req.reqId || 'unknown');
@@ -16,17 +13,32 @@ morgan.token('userId', (req) => req.user?.id || 'anonymous');
 // Create a simple log format
 const logFormat = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" reqId=:reqId userId=:userId';
 
-// Create write stream for combined logs
-const accessLogStream = fs.createWriteStream(
-  path.join(logsDir, 'access.log'), 
-  { flags: 'a' }
-);
+// Build log write streams. On Vercel, write to process.stdout instead of
+// files (filesystem is read-only outside /tmp).
+let accessLogStream;
+let errorLogStream;
 
-// Create write stream for error logs
-const errorLogStream = fs.createWriteStream(
-  path.join(logsDir, 'error.log'), 
-  { flags: 'a' }
-);
+if (isVercel) {
+  accessLogStream = { write: (str) => { process.stdout.write(str); return true; } };
+  errorLogStream = { write: (str) => { process.stdout.write(str); return true; } };
+} else {
+  // Create logs directory if it doesn't exist
+  const logsDir = path.join(__dirname, '..', 'logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+    console.log('Created logs directory:', logsDir);
+  }
+
+  accessLogStream = fs.createWriteStream(
+    path.join(logsDir, 'access.log'), 
+    { flags: 'a' }
+  );
+
+  errorLogStream = fs.createWriteStream(
+    path.join(logsDir, 'error.log'), 
+    { flags: 'a' }
+  );
+}
 
 // Middleware to add request ID
 const addRequestId = async (req, res, next) => {
@@ -83,10 +95,14 @@ const securityLogger = (req, res, next) => {
         pattern: pattern.source
       };
       
-      fs.appendFileSync(
-        path.join(logsDir, 'security.log'), 
-        JSON.stringify(logEntry) + '\n'
-      );
+      if (isVercel) {
+        process.stdout.write(JSON.stringify(logEntry) + '\n');
+      } else {
+        fs.appendFileSync(
+          path.join(logsDir, 'security.log'), 
+          JSON.stringify(logEntry) + '\n'
+        );
+      }
     }
   }
   
