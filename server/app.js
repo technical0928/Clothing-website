@@ -151,7 +151,9 @@ app.get("/uploads/:filename", async (req, res) => {
     if (record && record.data) {
       res.set("Content-Type", record.mimeType || "application/octet-stream");
       res.set("Cache-Control", "public, max-age=31536000, immutable");
-      return res.send(record.data);
+      // Force raw bytes — Prisma may return a Uint8Array, which Express
+      // would JSON-serialize ({"0":137,...}) instead of sending the image.
+      return res.end(Buffer.from(record.data));
     }
   } catch (error) {
     console.error("[uploads] DB lookup failed:", error.message);
