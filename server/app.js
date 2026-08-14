@@ -68,6 +68,7 @@ app.use(errorLogger);
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://noor-e-multan.vercel.app',
   process.env.NEXTAUTH_URL,
   process.env.FRONTEND_URL,
 ].filter(Boolean); // Remove undefined values
@@ -80,6 +81,13 @@ const corsOptions = {
     
 
     if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+
+    // Allow any Vercel deployment of the storefront (production + previews),
+    // so CORS never breaks when the frontend gets a new deployment URL.
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
       return callback(null, true);
     }
     
