@@ -48,6 +48,8 @@ const {
   handleServerError
 } = require('./utills/errorHandler');
 
+const prisma = require("./utills/db");
+
 const app = express();
 
 // Trust proxy for accurate IP addresses
@@ -105,6 +107,13 @@ const corsOptions = {
   credentials: true, // Allow cookies and authorization headers
 };
 
+// Never cache API responses — Vercel's edge/CDN may otherwise serve stale
+// product lists and admin data (e.g. an old page of products).
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 // Apply general rate limiting to all routes
 app.use(generalLimiter);
 
@@ -130,9 +139,30 @@ app.use("/api/users/email", authLimiter); // For login attempts via email lookup
 // Apply admin rate limiting to admin routes
 
 
-// Serve uploaded product images straight from disk. Next.js production
-// only serves files that existed at build time, so newly uploaded images
-// are served here instead (works for files added at any time).
+// Serve uploaded product images. New uploads are persisted in Neon
+// (Vercel's filesystem is ephemeral); legacy files committed in git are
+// served from disk as a fallback.
+app.get("/uploads/:filename", async (req, res) => {
+  const { filename } = req.params;
+  try {
+    const record = await prisma.productImageFile.findUnique({
+      where: { fileName: `uploads/${filename}` },
+    });
+    if (record && record.data) {
+      res.set("Content-Type", record.mimeType || "application/octet-stream");
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
+      return res.send(record.data);
+    }
+  } catch (error) {
+    console.error("[uploads] DB lookup failed:", error.message);
+  }
+  // Fallback: files committed in the repo (legacy/demo images).
+  res.sendFile(path.join(__dirname, "..", "public", "uploads", filename), (err) => {
+    if (err) {
+      res.status(404).send("Not found");
+    }
+  });
+});
 app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 
 app.use("/api/products", productsRouter);

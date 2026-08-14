@@ -3,11 +3,9 @@ const prisma = require("../utills/db"); // ✅ Use shared connection
 const fs = require('fs');
 const path = require('path');
 
-// Uploads live in public/uploads/ and are served by the API at /uploads/*
-// (Next.js production only serves files that existed at build time).
-// On Vercel the filesystem is read-only outside /tmp, so uploaded files go
-// to the OS temp dir (they are ephemeral — demo product images are served
-// from git instead and always work).
+// Uploads live in public/uploads/ locally. On Vercel the filesystem is
+// read-only outside /tmp, so uploaded files are ALSO persisted in the Neon
+// database (ProductImageFile) and served back from there — they never vanish.
 const UPLOADS_DIR = process.env.VERCEL
   ? path.join(require("os").tmpdir(), "uploads")
   : path.join(__dirname, "..", "..", "public", "uploads");
@@ -50,16 +48,38 @@ async function uploadMainImage(req, res) {
     const finalFileName = sanitizeFileName(uploadedFile.name);
     const relativePath = `uploads/${finalFileName}`;
 
-    // Using mv method for moving file to the directory on the server
-    uploadedFile.mv(path.join(UPLOADS_DIR, finalFileName), (err) => {
-      if (err) {
-        return res.status(500).send(err);
-      }
-  
-      res.status(200).json({
-        message: "Fajl je uspešno otpremljen",
-        fileName: relativePath
+    // Persist the bytes in Neon so they survive serverless restarts.
+    try {
+      await prisma.productImageFile.upsert({
+        where: { fileName: relativePath },
+        update: {
+          data: uploadedFile.data,
+          mimeType: uploadedFile.mimetype || "application/octet-stream",
+          size: uploadedFile.size || uploadedFile.data.length,
+        },
+        create: {
+          fileName: relativePath,
+          data: uploadedFile.data,
+          mimeType: uploadedFile.mimetype || "application/octet-stream",
+          size: uploadedFile.size || uploadedFile.data.length,
+        },
       });
+    } catch (error) {
+      console.error("[mainImages] Failed to persist image in DB:", error.message);
+      return res.status(500).send(error);
+    }
+
+    // Also write to local disk where possible (dev mode / persistent hosts).
+    try {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      fs.writeFileSync(path.join(UPLOADS_DIR, finalFileName), uploadedFile.data);
+    } catch (error) {
+      console.warn("[mainImages] Disk write skipped:", error.message);
+    }
+
+    res.status(200).json({
+      message: "Fajl je uspešno otpremljen",
+      fileName: relativePath,
     });
   }
 
