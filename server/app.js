@@ -170,6 +170,36 @@ app.get('/rate-limit-info', (req, res) => {
   });
 });
 
+// Root endpoint — returns a useful overview instead of a bare 404
+app.get('/', (req, res) => {
+  res.status(200).json({
+    service: 'Noor-e-Multan API',
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    requestId: req.reqId,
+    endpoints: [
+      '/health',
+      '/rate-limit-info',
+      '/api/products',
+      '/api/categories',
+      '/api/search',
+      '/api/images',
+      '/api/main-image',
+      '/api/users',
+      '/api/orders',
+      '/api/order-product',
+      '/api/slugs',
+      '/api/notifications',
+      '/api/merchants',
+      '/api/bulk-upload',
+      '/api/stats',
+      '/api/password-reset',
+      '/api/settings',
+      '/api/contact'
+    ]
+  });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
