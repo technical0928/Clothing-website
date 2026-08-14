@@ -13,6 +13,19 @@ const nextConfig = {
             hostname: 'placehold.co',
             port: ""
           },
+          // Uploaded images are served by the API (via the /uploads rewrite).
+          // The image optimizer validates rewritten external hosts against
+          // remotePatterns, so the API host(s) must be allowed here.
+          {
+            protocol: 'https',
+            hostname: 'clothing-website-server.vercel.app',
+            port: ""
+          },
+          {
+            protocol: 'https',
+            hostname: '**.vercel.app',
+            port: ""
+          },
         ],
       },
     env: {
