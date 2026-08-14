@@ -545,6 +545,13 @@ const updateProduct = asyncHandler(async (request, response) => {
     }
   }
 
+  // Never clear an existing image with an empty/undefined value — the admin
+  // edit form can send an empty mainImage and would otherwise wipe the photo.
+  const resolvedMainImage =
+    mainImage !== undefined && mainImage !== null && mainImage !== ""
+      ? mainImage
+      : existingProduct.mainImage;
+
   const updatedProduct = await prisma.product.update({
     where: {
       id,
@@ -552,7 +559,7 @@ const updateProduct = asyncHandler(async (request, response) => {
     data: {
       merchantId: merchantId || existingProduct.merchantId,
       title: title ?? existingProduct.title,
-      mainImage: mainImage ?? existingProduct.mainImage,
+      mainImage: resolvedMainImage,
       slug: normalizedSlug,
       price: parsedPrice,
       salePrice: salePrice !== undefined ? parsePositivePrice(salePrice) : existingProduct.salePrice,
