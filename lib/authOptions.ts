@@ -3,6 +3,20 @@ import bcrypt from "bcryptjs";
 import prisma from "@/utils/db";
 import { nanoid } from "nanoid";
 
+// Safety net: NextAuth reads `process.env.NEXTAUTH_URL` at request time (and
+// bakes it into the client bundle at build). If the value is missing or still a
+// placeholder from the Vercel dashboard, derive the real base URL from
+// `VERCEL_URL` (set automatically by Vercel) so auth redirects never leave the
+// deployed site.
+const rawAuthUrl = process.env.NEXTAUTH_URL || "";
+let authHost = "";
+try {
+  authHost = new URL(rawAuthUrl).hostname;
+} catch {}
+if (!rawAuthUrl || authHost === "example.com" || authHost === "example.vercel.app") {
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL || "localhost:3000"}`;
+}
+
 export const authOptions: any = {
   providers: [
     CredentialsProvider({
@@ -119,5 +133,8 @@ export const authOptions: any = {
     maxAge: 15 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Let NextAuth trust the request host (serverless/Vercel) so auth URLs stay
+  // on whatever domain the site is actually served from.
+  trustHost: true,
   debug: process.env.NODE_ENV === "development",
 };
