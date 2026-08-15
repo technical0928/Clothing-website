@@ -1,5 +1,6 @@
 export const revalidate = 30;
 
+import type { Metadata } from "next";
 import {
   Breadcrumb,
   Filters,
@@ -21,6 +22,25 @@ const improveCategoryText = (text: string): string => {
   }
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const category = slug && slug[0]?.length > 0 ? improveCategoryText(slug[0]) : "";
+  const title = category ? `${category} clothing` : "Shop all clothing";
+  return {
+    title,
+    description: category
+      ? `Shop ${title} online at Noor-e-Multan — Pakistani ready-to-wear, lawn and formal wear with delivery across Pakistan.`
+      : "Browse the full Noor-e-Multan collection — Pakistani ready-to-wear, lawn, kurtas and formal wear with delivery across Pakistan.",
+    alternates: {
+      canonical: slug && slug[0]?.length > 0 ? `/shop/${slug.join("/")}` : "/shop",
+    },
+  };
+}
+
 const ShopPage = async ({ params, searchParams }: { params: Promise<{ slug?: string[] }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) => {
   // Await both params and searchParams
   const awaitedParams = await params;
@@ -34,11 +54,11 @@ const ShopPage = async ({ params, searchParams }: { params: Promise<{ slug?: str
           <Filters />
           <div>
             <div className="flex justify-between items-center max-lg:flex-col max-lg:gap-y-5">
-              <h2 className="text-2xl font-bold max-sm:text-xl max-[400px]:text-lg uppercase">
+              <h1 className="text-2xl font-bold max-sm:text-xl max-[400px]:text-lg uppercase">
                 {awaitedParams?.slug && awaitedParams?.slug[0]?.length > 0
                   ? sanitize(improveCategoryText(awaitedParams?.slug[0]))
                   : "All products"}
-              </h2>
+              </h1>
 
               <SortBy />
             </div>

@@ -16,6 +16,45 @@ import { sanitize } from "@/lib/sanitize";
 
 export const revalidate = 30;
 
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ productSlug: string }>;
+}): Promise<Metadata> {
+  const { productSlug } = await params;
+  try {
+    const res = await apiClient.get(`/api/slugs/${productSlug}`, {
+      next: { revalidate: 30, tags: ["products"] },
+    });
+    const product = await res.json();
+    if (product && !product.error && product.title) {
+      const description =
+        typeof product.description === "string" && product.description.trim()
+          ? product.description.trim().slice(0, 155)
+          : `Buy ${product.title} online — Noor-e-Multan.`;
+      return {
+        title: product.title,
+        description,
+        alternates: { canonical: `/product/${productSlug}` },
+        openGraph: {
+          type: "website",
+          title: product.title,
+          description,
+          url: `/product/${productSlug}`,
+          images: product.mainImage
+            ? [{ url: `/${product.mainImage}`, alt: product.title }]
+            : [],
+        },
+      };
+    }
+  } catch (error) {
+    console.error("generateMetadata: product fetch failed", error);
+  }
+  return { title: "Product" };
+}
+
 interface ImageItem {
   imageID: string;
   productID: string;
@@ -75,8 +114,32 @@ const SingleProductPage = async ({ params }: SingleProductPageProps) => {
     ? Math.round(((product.price - product.salePrice) / product.price) * 100)
     : 0;
 
+  const price = hasSale && product?.salePrice ? product.salePrice : product?.price;
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product?.title,
+    description:
+      typeof product?.description === "string" ? product.description : undefined,
+    image: product?.mainImage ? `https://noor-e-multan.vercel.app/${product.mainImage}` : undefined,
+    brand: { "@type": "Brand", name: "Noor-e-Multan" },
+    offers: {
+      "@type": "Offer",
+      url: `https://noor-e-multan.vercel.app/product/${product?.slug}`,
+      priceCurrency: "PKR",
+      price: price ?? undefined,
+      availability: product?.inStock > 0
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+    },
+  };
+
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       <div className="max-w-screen-2xl mx-auto">
         <div className="flex justify-center gap-x-16 pt-10 max-lg:flex-col items-center gap-y-5 px-5">
           <div>

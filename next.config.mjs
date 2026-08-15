@@ -7,11 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
     outputFileTracingRoot: __dirname,
     images: {
-        // Serve images without Next's optimizer: uploaded files live behind the
-        // /uploads rewrite (API + Neon) which the optimizer rejects with 400
-        // (INVALID_IMAGE_OPTIMIZE_REQUEST). Raw <img src="/uploads/..."> goes
-        // through the rewrite and is verified working.
-        unoptimized: true,
+        // Serve modern formats (AVIF/WebP) and resize images through Next's
+        // optimizer. Uploaded files are reached via the /uploads rewrite to
+        // the API — the API host must stay in remotePatterns below.
+        formats: ['image/avif', 'image/webp'],
         remotePatterns: [
           {
             protocol: 'https',

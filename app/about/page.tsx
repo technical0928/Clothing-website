@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About Us",
+  description:
+    "Learn about Noor-e-Multan — a Pakistani clothing house built around graceful everyday luxury, traditional craft and modern finishes.",
+};
+
 const sections = [
   {
     id: "about-noor-e-multan",

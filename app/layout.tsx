@@ -22,9 +22,47 @@ const body = Manrope({
   variable: "--font-body",
 });
 
+const SITE_URL = "https://noor-e-multan.vercel.app";
+const SITE_NAME = "Noor-e-Multan — Clothing Brand";
+const SITE_DESCRIPTION =
+  "Noor-e-Multan brings elegant Pakistani clothing to every wardrobe with curated collections, cultural flair, and delivery across Pakistan.";
+
 export const metadata: Metadata = {
-  title: "Noor-e-Multan — Clothing Brand",
-  description: "Noor-e-Multan brings elegant Pakistani clothing to every wardrobe with curated collections, cultural flair, and delivery across Pakistan.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_NAME,
+    template: "%s | Noor-e-Multan",
+  },
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Noor-e-Multan",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_PK",
+    images: [
+      {
+        url: "/noor-e-multan-logo.svg",
+        width: 240,
+        height: 240,
+        alt: "Noor-e-Multan logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ["/noor-e-multan-logo.svg"],
+  },
 };
 
 export default async function RootLayout({
