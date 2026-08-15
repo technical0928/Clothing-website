@@ -119,7 +119,9 @@ app.use(generalLimiter);
 
 app.use(express.json());
 app.use(cors(corsOptions));
-app.use(fileUpload());
+// Allow reasonably large image uploads (client compresses big photos
+// before sending, so this is just a safety net).
+app.use(fileUpload({ limits: { fileSize: 10 * 1024 * 1024 } }));
 
 // Apply specific rate limiters to different route groups
 app.use("/api/users", userManagementLimiter);

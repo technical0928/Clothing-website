@@ -12,6 +12,7 @@ import apiClient from "@/lib/api";
 import config from "@/lib/config";
 import { parsePriceInput } from "@/lib/price";
 import { computeSalePrice, computeDiscountPercent } from "@/lib/discount";
+import { compressImage } from "@/lib/compressImage";
 
 export default function DashboardProductDetails({ params }: any) {
   const id = params?.id;
@@ -22,6 +23,9 @@ export default function DashboardProductDetails({ params }: any) {
   const [categories, setCategories] = useState<Category[]>();
   const [otherImages, setOtherImages] = useState<OtherImages[]>([]);
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [uploadState, setUploadState] = useState<
+    "idle" | "uploading" | "done" | "failed"
+  >("idle");
   const router = useRouter();
 
   // functionality for deleting product
@@ -66,6 +70,17 @@ export default function DashboardProductDetails({ params }: any) {
       return;
     }
 
+    // If the user picked a new image, it must have uploaded successfully
+    // before we update — otherwise the product would have a broken image.
+    if (uploadState === "uploading") {
+      toast.error("Image is still uploading — please wait a moment");
+      return;
+    }
+    if (uploadState === "failed") {
+      toast.error("Image upload failed — please select the image again");
+      return;
+    }
+
     try {
       const discountNumber = discountPercent.trim() === ""
         ? null
@@ -103,8 +118,18 @@ export default function DashboardProductDetails({ params }: any) {
 
   // functionality for uploading main image file
   const uploadFile = async (file: any): Promise<string> => {
+    setUploadState("uploading");
+
+    // Compress large phone photos so the upload always succeeds quickly.
+    let payload: any = file;
+    try {
+      payload = await compressImage(file);
+    } catch (error) {
+      console.error("[uploadFile] compression failed, sending original:", error);
+    }
+
     const formData = new FormData();
-    formData.append("uploadedFile", file);
+    formData.append("uploadedFile", payload);
 
     try {
       const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
@@ -117,6 +142,7 @@ export default function DashboardProductDetails({ params }: any) {
         console.log("Main image uploaded:", data);
         // Server sanitizes the filename — use the returned name
         if (data?.fileName) {
+          setUploadState("done");
           return data.fileName;
         }
       } else {
@@ -127,7 +153,10 @@ export default function DashboardProductDetails({ params }: any) {
       toast.error("There was an error during request sending");
     }
 
-    return file.name;
+    setUploadState("failed");
+    // IMPORTANT: never fall back to the local file name — a raw filename
+    // can't be served by the API and would show as a broken image forever.
+    return "";
   };
 
   // refresh the gallery image list for this product
@@ -468,6 +497,7 @@ export default function DashboardProductDetails({ params }: any) {
         <div>
           <input
             type="file"
+            accept="image/*"
             className="file-input file-input-bordered file-input-lg w-full max-w-sm"
             onChange={(e) => {
               // @ts-ignore
@@ -483,6 +513,16 @@ export default function DashboardProductDetails({ params }: any) {
               }
             }}
           />
+          {uploadState === "uploading" && (
+            <p className="text-sm mt-2 text-stone-500">
+              Uploading image…
+            </p>
+          )}
+          {uploadState === "failed" && (
+            <p className="text-sm mt-2 text-red-600 font-medium">
+              Image upload failed — please select the image again.
+            </p>
+          )}
           {product?.mainImage && (
             <Image
               src={`/` + product?.mainImage}

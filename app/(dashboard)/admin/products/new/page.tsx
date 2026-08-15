@@ -6,6 +6,7 @@ import { convertCategoryNameToURLFriendly as convertSlugToURLFriendly } from "@/
 import { sanitizeFormData } from "@/lib/form-sanitize";
 import { parsePriceInput } from "@/lib/price";
 import { computeSalePrice } from "@/lib/discount";
+import { compressImage } from "@/lib/compressImage";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -45,6 +46,9 @@ const AddNewProduct = () => {
   const [categoryLoadError, setCategoryLoadError] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [uploadState, setUploadState] = useState<
+    "idle" | "uploading" | "done" | "failed"
+  >("idle");
 
   useEffect(() => {
     console.log("[DEBUG] product state", product);
@@ -66,6 +70,21 @@ const AddNewProduct = () => {
       parsedPrice === null
     ) {
       toast.error("Please enter valid values in all required fields");
+      return;
+    }
+
+    // If the user picked an image, it must have uploaded successfully
+    // before we save — otherwise the product would have a broken image.
+    if (selectedImageFile && uploadState === "uploading") {
+      toast.error("Image is still uploading — please wait a moment");
+      return;
+    }
+    if (selectedImageFile && uploadState === "failed") {
+      toast.error("Image upload failed — please select the image again");
+      return;
+    }
+    if (selectedImageFile && !product.mainImage) {
+      toast.error("Image upload failed — please select the image again");
       return;
     }
 
@@ -98,6 +117,8 @@ const AddNewProduct = () => {
           () => undefined
         );
         toast.success("Product added successfully");
+        setUploadState("idle");
+        setSelectedImageFile(null);
         setProduct({
           title: "",
           price: "",
@@ -126,12 +147,21 @@ const AddNewProduct = () => {
 
 
   const uploadFile = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("uploadedFile", file);
-
     setSelectedImageFile(file);
+    setUploadState("uploading");
     const previewUrl = URL.createObjectURL(file);
     setImagePreviewUrl(previewUrl);
+
+    // Compress large phone photos so the upload always succeeds quickly.
+    let payload: File = file;
+    try {
+      payload = await compressImage(file);
+    } catch (error) {
+      console.error("[uploadFile] compression failed, sending original:", error);
+    }
+
+    const formData = new FormData();
+    formData.append("uploadedFile", payload);
 
     try {
       const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
@@ -145,16 +175,21 @@ const AddNewProduct = () => {
         // The server sanitizes the filename (safe for the web server),
         // so use the returned name instead of the original file name.
         if (data?.fileName) {
+          setUploadState("done");
           return data.fileName;
         }
-      } else {
-        console.error("File upload unsuccessful", response.status, response.statusText);
       }
+      console.error("File upload unsuccessful", response.status, response.statusText);
+      toast.error("Image upload failed — please select the image again");
     } catch (error) {
       console.error("Error happened while sending request:", error);
+      toast.error("Image upload failed — check your connection and try again");
     }
 
-    return file.name;
+    setUploadState("failed");
+    // IMPORTANT: never fall back to the local file name — a raw filename
+    // can't be served by the API and would show as a broken image forever.
+    return "";
   };
 
   useEffect(() => {
@@ -412,6 +447,7 @@ const AddNewProduct = () => {
               const selectedFile = e.target.files?.[0];
               if (!selectedFile) return;
 
+              setSelectedImageFile(selectedFile);
               uploadFile(selectedFile).then((savedName) => {
                 setProduct((current) => ({
                   ...current,
@@ -420,6 +456,16 @@ const AddNewProduct = () => {
               });
             }}
           />
+          {uploadState === "uploading" && (
+            <p className="text-sm mt-2 text-stone-500">
+              Uploading image…
+            </p>
+          )}
+          {uploadState === "failed" && (
+            <p className="text-sm mt-2 text-red-600 font-medium">
+              Image upload failed — please select the image again.
+            </p>
+          )}
           {imagePreviewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
