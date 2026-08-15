@@ -30,7 +30,10 @@ function initTransporter() {
         secure: process.env.SMTP_SECURE === "true",
         auth: {
           user: smtpUser,
-          pass: process.env.SMTP_PASS || "",
+          // Strip surrounding quotes/whitespace — a password pasted into a
+          // dashboard env var with quotes ("...") would otherwise fail
+          // Gmail auth with "Username and Password not accepted".
+          pass: String(process.env.SMTP_PASS || "").trim().replace(/^["']|["']$/g, ""),
         },
       });
       mailConfigured = true;
