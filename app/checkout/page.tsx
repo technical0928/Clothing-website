@@ -7,11 +7,6 @@ import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
-import {
-  validateCreditCard,
-  isValidCreditCardExpirationDate,
-  isValidCreditCardCVVOrCVC,
-} from "@/lib/utils";
 
 const CheckoutPage = () => {
   const { data: session } = useSession();
@@ -31,11 +26,6 @@ const CheckoutPage = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cod");
-  const [cardInfo, setCardInfo] = useState({
-    cardNumber: "",
-    cardExpiry: "",
-    cardCvv: "",
-  });
   const { products, total, clearCart, buyNowItem, clearBuyNowItem } = useProductStore();
   // When "Buy Now" was clicked, checkout ONLY that item (it is not in the cart)
   const checkoutItems = buyNowItem ? [buyNowItem] : products;
@@ -139,23 +129,6 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Validate card details when the customer chose to pay by card
-    if (paymentMethod === "card") {
-      const cardCheck = validateCreditCard(cardInfo.cardNumber.replace(/[\s-]/g, ""));
-      if (!cardCheck.isValid) {
-        toast.error(cardCheck.error || "Please enter a valid card number");
-        return;
-      }
-      if (!isValidCreditCardExpirationDate(cardInfo.cardExpiry)) {
-        toast.error("Please enter a valid card expiry (MM/YY or MM/YYYY)");
-        return;
-      }
-      if (!isValidCreditCardCVVOrCVC(cardInfo.cardCvv)) {
-        toast.error("Please enter a valid CVV/CVC (3-4 digits)");
-        return;
-      }
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -194,7 +167,7 @@ const CheckoutPage = () => {
         country: checkoutForm.country.trim(),
         orderNotice: checkoutForm.orderNotice.trim(),
         paymentMethod,
-        paymentStatus: paymentMethod === "card" ? "paid" : "pending",
+        paymentStatus: "pending",
         total: checkoutTotal,
         userId: userId // Add user ID for notifications
       };
@@ -581,9 +554,6 @@ const CheckoutPage = () => {
                 <div className="space-y-3">
                   {[
                     { id: "cod", title: "Cash on Delivery", desc: "Pay in cash when your order arrives" },
-                    { id: "card", title: "Debit / Credit Card", desc: "Pay securely online by card" },
-                    { id: "jazzcash", title: "JazzCash", desc: "We will send you a JazzCash payment request on WhatsApp" },
-                    { id: "easypaisa", title: "Easypaisa", desc: "We will send you an Easypaisa payment request on WhatsApp" },
                   ].map((method) => (
                     <label
                       key={method.id}
@@ -610,75 +580,6 @@ const CheckoutPage = () => {
                 </div>
               </fieldset>
 
-              {/* Card details (only for card payment) */}
-              {paymentMethod === "card" && (
-                <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label htmlFor="card-number" className="block text-sm font-medium text-gray-700">
-                      Card number *
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        id="card-number"
-                        name="card-number"
-                        placeholder="1234 5678 9012 3456"
-                        disabled={isSubmitting}
-                        value={cardInfo.cardNumber}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 16);
-                          const formatted = digits.replace(/(\d{4})(?=\d)/g, "$1 ");
-                          setCardInfo({ ...cardInfo, cardNumber: formatted });
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="card-expiry" className="block text-sm font-medium text-gray-700">
-                      Expiry (MM/YY) *
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        id="card-expiry"
-                        name="card-expiry"
-                        placeholder="MM/YY"
-                        disabled={isSubmitting}
-                        value={cardInfo.cardExpiry}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 4);
-                          const formatted = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
-                          setCardInfo({ ...cardInfo, cardExpiry: formatted });
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="card-cvv" className="block text-sm font-medium text-gray-700">
-                      CVV/CVC *
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        id="card-cvv"
-                        name="card-cvv"
-                        placeholder="123"
-                        disabled={isSubmitting}
-                        value={cardInfo.cardCvv}
-                        onChange={(e) =>
-                          setCardInfo({ ...cardInfo, cardCvv: e.target.value.replace(/[^\d]/g, "").slice(0, 4) })
-                        }
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </section>
 
             {/* Shipping Address */}

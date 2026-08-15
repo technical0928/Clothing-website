@@ -361,7 +361,7 @@ const validateOrderData = (orderData) => {
     orderData.orderNotice.trim().substring(0, 500) : ''; // Limit to 500 characters
 
   // Optional payment fields (whitelisted values only)
-  const validPaymentMethods = ['cod', 'card', 'jazzcash', 'easypaisa'];
+  const validPaymentMethods = ['cod'];
   const validPaymentStatuses = ['pending', 'paid'];
   validatedData.paymentMethod = orderData.paymentMethod
     ? String(orderData.paymentMethod).toLowerCase()
