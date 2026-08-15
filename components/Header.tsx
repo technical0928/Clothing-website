@@ -177,12 +177,20 @@ const Header = () => {
       )}
       {pathname.startsWith("/admin") === true && (
         <div className="flex justify-between h-32 bg-white items-center px-16 max-[1320px]:px-10  max-w-screen-2xl mx-auto max-[400px]:px-5">
-          <Link href="/" className="flex flex-col items-start gap-y-1">
-            {/* TODO: Replace with real client logo image file at public/noor-e-multan-logo.png */}
-            <span className="text-3xl font-serif tracking-tight text-stone-900">
-              Noor-e-Multan
-            </span>
-            <span className="text-sm italic text-stone-500">Unique Blend of Culture</span>
+          <Link href="/" className="flex items-center gap-x-4">
+            <Image
+              src="/noor-e-multan-logo.svg"
+              alt="Noor-e-Multan logo"
+              width={60}
+              height={60}
+              className="rounded-xl bg-amber-50"
+            />
+            <div className="flex flex-col items-start">
+              <span className="text-3xl font-serif tracking-tight text-stone-900">
+                Noor-e-Multan
+              </span>
+              <span className="text-sm italic text-stone-500">Unique Blend of Culture</span>
+            </div>
           </Link>
           <div className="flex gap-x-4 items-center">
             <ThemeToggle />

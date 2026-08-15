@@ -99,8 +99,6 @@ export default function AdminSettingsPage() {
   });
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
-  const [testTo, setTestTo] = useState((session as any)?.user?.email || "");
-  const [testingEmail, setTestingEmail] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -143,34 +141,6 @@ export default function AdminSettingsPage() {
       toast.error("Network error. Please try again.");
     } finally {
       setSavingEmail(false);
-    }
-  };
-
-  const sendTestEmail = async () => {
-    if (!isValidEmailAddressFormat(testTo)) {
-      toast.error("Enter a valid recipient email for the test");
-      return;
-    }
-    setTestingEmail(true);
-    try {
-      const response = await apiClient.post("/api/settings/email/test", {
-        to: testTo,
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        toast.error(data.error || "Failed to send test email");
-        return;
-      }
-      if (data.configured) {
-        toast.success("Test email sent — check your inbox");
-      } else {
-        toast.success("Test email logged to console (SMTP not configured yet)");
-      }
-    } catch (error) {
-      console.error("Test email failed:", error);
-      toast.error("Failed to send test email");
-    } finally {
-      setTestingEmail(false);
     }
   };
 
@@ -534,23 +504,6 @@ export default function AdminSettingsPage() {
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-3 border-t border-gray-200 p-7">
-            <div className="flex items-center gap-x-2">
-              <input
-                type="email"
-                className="input input-bordered w-64 bg-white"
-                placeholder="test@email.com"
-                value={testTo}
-                onChange={(e) => setTestTo(e.target.value)}
-              />
-              <button
-                type="button"
-                disabled={testingEmail}
-                onClick={sendTestEmail}
-                className="rounded-md border border-stone-300 bg-white px-5 py-3 font-semibold text-stone-900 hover:bg-stone-900 hover:text-white disabled:cursor-not-allowed disabled:bg-gray-200"
-              >
-                {testingEmail ? "Sending..." : "Send test email"}
-              </button>
-            </div>
             <button
               type="button"
               disabled={savingEmail}
