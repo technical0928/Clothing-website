@@ -31,11 +31,15 @@ model Product {
   sizes          String                   @default("")
   colors         String                   @default("")
   fabric         String                   @default("")
+  createdAt      DateTime                 @default(now())
 
   merchantId     String
   merchant       Merchant @relation(fields: [merchantId], references: [id])
   // Back relation for bulk upload items
   bulkUploadItems bulk_upload_item[]      @relation("ProductBulkItems")
+
+  @@index([createdAt])
+  @@index([salePrice])
 }
 
 model Image {

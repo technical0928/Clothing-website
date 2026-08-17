@@ -112,17 +112,20 @@ const ProductCarousel = ({
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setIsPaused(false)}
     >
-      {/* Left arrow */}
-      {canScrollLeft && (
-        <button
-          type="button"
-          aria-label="Scroll products left"
-          onClick={() => scrollByCard(-1)}
-          className="absolute -left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-stone-200 bg-white/95 text-xl font-bold text-stone-900 shadow-md transition-all hover:scale-110 hover:bg-stone-900 hover:text-white md:flex"
-        >
-          ‹
-        </button>
-      )}
+      {/* Left arrow — always visible; dimmed when already at the start */}
+      <button
+        type="button"
+        aria-label="Scroll products left"
+        onClick={() => scrollByCard(-1)}
+        disabled={!canScrollLeft}
+        className={`absolute -left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:flex ${
+          canScrollLeft
+            ? "border-stone-200 bg-white/95 text-stone-900 hover:scale-110 hover:bg-stone-900 hover:text-white"
+            : "cursor-not-allowed border-stone-100 bg-stone-100/80 text-stone-300"
+        }`}
+      >
+        ‹
+      </button>
 
       {/* Scroll track */}
       <div
@@ -146,17 +149,20 @@ const ProductCarousel = ({
         ))}
       </div>
 
-      {/* Right arrow */}
-      {canScrollRight && (
-        <button
-          type="button"
-          aria-label="Scroll products right"
-          onClick={() => scrollByCard(1)}
-          className="absolute -right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-stone-200 bg-white/95 text-xl font-bold text-stone-900 shadow-md transition-all hover:scale-110 hover:bg-stone-900 hover:text-white md:flex"
-        >
-          ›
-        </button>
-      )}
+      {/* Right arrow — always visible; dimmed when already at the end */}
+      <button
+        type="button"
+        aria-label="Scroll products right"
+        onClick={() => scrollByCard(1)}
+        disabled={!canScrollRight}
+        className={`absolute -right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:flex ${
+          canScrollRight
+            ? "border-stone-200 bg-white/95 text-stone-900 hover:scale-110 hover:bg-stone-900 hover:text-white"
+            : "cursor-not-allowed border-stone-100 bg-stone-100/80 text-stone-300"
+        }`}
+      >
+        ›
+      </button>
     </div>
   );
 };

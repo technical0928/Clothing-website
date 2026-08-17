@@ -194,6 +194,89 @@ const getAllProducts = asyncHandler(async (request, response) => {
       sizes: uniqueValues(allSizes),
       colors: uniqueValues(allColors),
     });
+  }
+
+  // Homepage sections: each one fetches ONLY the bounded batch it needs, so a
+  // 20,000-product catalog never loads the whole table on the homepage.
+  if (mode === "section") {
+    const section = String(request.query.section || "").trim();
+    const limit = Math.min(Number(request.query.limit) || 12, 24);
+    const include = {
+      category: { select: { name: true } },
+    };
+
+    if (section === "new") {
+      const products = await prisma.product.findMany({
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include,
+      });
+      return response.json(products);
+    }
+
+    if (section === "sale") {
+      // Products with an active discount (salePrice set and lower than price).
+      const products = await prisma.product.findMany({
+        where: {
+          salePrice: { not: null },
+          NOT: { salePrice: null },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit * 2,
+        include,
+      });
+      const onSale = products
+        .filter((p) => p.salePrice !== null && p.salePrice < p.price)
+        .slice(0, limit);
+      return response.json(onSale);
+    }
+
+    if (section === "best-sellers") {
+      // Most-ordered products, aggregated from line items (bounded result).
+      const top = await prisma.customer_order_product.groupBy({
+        by: ["productId"],
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: "desc" } },
+        take: limit,
+      });
+      const ids = top.map((t) => t.productId).filter(Boolean);
+      if (ids.length === 0) {
+        return response.json([]);
+      }
+      const products = await prisma.product.findMany({
+        where: { id: { in: ids } },
+        include,
+      });
+      // Preserve the sales-rank order
+      const orderMap = new Map(products.map((p) => [p.id, p]));
+      return response.json(ids.map((id) => orderMap.get(id)).filter(Boolean));
+    }
+
+    if (section === "featured" || section === "all") {
+      const products = await prisma.product.findMany({
+        take: limit,
+        include,
+      });
+      return response.json(products);
+    }
+
+    // Category section (women, men, or any other category name/slug)
+    const categoryName = section
+      .split(/[-_\s]+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+    const category = await prisma.category.findFirst({
+      where: { name: { equals: categoryName, mode: "insensitive" } },
+    });
+    if (!category) {
+      return response.json([]);
+    }
+    const products = await prisma.product.findMany({
+      where: { categoryId: category.id },
+      take: limit,
+      include,
+    });
+    return response.json(products);
   } else {
     const dividerLocation = request.url.indexOf("?");
     let filterObj = {};
