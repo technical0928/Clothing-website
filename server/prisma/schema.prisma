@@ -151,6 +151,14 @@ model ContactMessage {
   @@index([createdAt])
 }
 
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 enum NotificationType {
   ORDER_UPDATE
   PAYMENT_STATUS

@@ -22,6 +22,7 @@ const statsRouter = require('./routes/stats');
 const passwordResetRouter = require('./routes/passwordReset');
 const emailSettingsRouter = require('./routes/emailSettings');
 const contactRouter = require('./routes/contact');
+const newsletterRouter = require('./routes/newsletter');
 var cors = require("cors");
 
 // Import logging middleware
@@ -186,6 +187,7 @@ app.use("/api/stats", statsRouter);
 app.use("/api/password-reset", passwordResetRouter);
 app.use("/api/settings", emailSettingsRouter);
 app.use("/api/contact", contactRouter);
+app.use("/api/newsletter", newsletterRouter);
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
