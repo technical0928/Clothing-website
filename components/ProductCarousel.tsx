@@ -112,15 +112,15 @@ const ProductCarousel = ({
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setIsPaused(false)}
     >
-      {/* Left arrow — always visible; dimmed when already at the start */}
+      {/* Left arrow — visible on all screen sizes; dimmed when at the start */}
       <button
         type="button"
         aria-label="Scroll products left"
         onClick={() => scrollByCard(-1)}
         disabled={!canScrollLeft}
-        className={`absolute -left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:flex ${
+        className={`absolute left-1 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:-left-3 md:h-11 md:w-11 ${
           canScrollLeft
-            ? "border-stone-200 bg-white/95 text-stone-900 hover:scale-110 hover:bg-stone-900 hover:text-white"
+            ? "border-stone-200 bg-white/95 text-stone-900 active:scale-95 hover:scale-110 hover:bg-stone-900 hover:text-white"
             : "cursor-not-allowed border-stone-100 bg-stone-100/80 text-stone-300"
         }`}
       >
@@ -149,15 +149,15 @@ const ProductCarousel = ({
         ))}
       </div>
 
-      {/* Right arrow — always visible; dimmed when already at the end */}
+      {/* Right arrow — visible on all screen sizes; dimmed when at the end */}
       <button
         type="button"
         aria-label="Scroll products right"
         onClick={() => scrollByCard(1)}
         disabled={!canScrollRight}
-        className={`absolute -right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:flex ${
+        className={`absolute right-1 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border text-xl font-bold shadow-md transition-all md:-right-3 md:h-11 md:w-11 ${
           canScrollRight
-            ? "border-stone-200 bg-white/95 text-stone-900 hover:scale-110 hover:bg-stone-900 hover:text-white"
+            ? "border-stone-200 bg-white/95 text-stone-900 active:scale-95 hover:scale-110 hover:bg-stone-900 hover:text-white"
             : "cursor-not-allowed border-stone-100 bg-stone-100/80 text-stone-300"
         }`}
       >
