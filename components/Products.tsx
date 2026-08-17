@@ -10,7 +10,10 @@
 
 import React from "react";
 import ProductItem from "./ProductItem";
+import Pagination from "./Pagination";
 import apiClient from "@/lib/api";
+
+const PAGE_SIZE = 12;
 
 const Products = async ({ params, searchParams }: { params: { slug?: string[] }, searchParams: { [key: string]: string | string[] | undefined } }) => {
   const inStockChecked = searchParams?.inStock === undefined ? true : searchParams?.inStock === "true";
@@ -46,6 +49,7 @@ const Products = async ({ params, searchParams }: { params: { slug?: string[] },
   }
 
   let products = [];
+  let totalCount = 0;
 
   try {
     const data = await apiClient.get(`/api/products?${queryParams.toString()}`, {
@@ -58,23 +62,32 @@ const Products = async ({ params, searchParams }: { params: { slug?: string[] },
     } else {
       const result = await data.json();
       products = Array.isArray(result) ? result : [];
+      // Server returns the total matching count in a header so we can render
+      // "Page X of Y" and numbered page links without a second request.
+      const headerCount = Number(data.headers?.get("X-Total-Count"));
+      totalCount = Number.isFinite(headerCount) && headerCount > 0 ? headerCount : products.length;
     }
   } catch (error) {
     console.error("Error fetching products:", error);
     products = [];
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
   return (
-    <div className="grid grid-cols-3 justify-items-center gap-x-2 gap-y-5 max-[1300px]:grid-cols-3 max-lg:grid-cols-2 max-[500px]:grid-cols-1">
-      {products.length > 0 ? (
-        products.map((product: any) => (
-          <ProductItem key={product.id} product={product} color="black" />
-        ))
-      ) : (
-        <h3 className="text-3xl mt-5 text-center w-full col-span-full max-[1000px]:text-2xl max-[500px]:text-lg">
-          No products found for specified query
-        </h3>
-      )}
+    <div>
+      <div className="grid grid-cols-3 justify-items-center gap-x-2 gap-y-5 max-[1300px]:grid-cols-3 max-lg:grid-cols-2 max-[500px]:grid-cols-1">
+        {products.length > 0 ? (
+          products.map((product: any) => (
+            <ProductItem key={product.id} product={product} color="black" />
+          ))
+        ) : (
+          <h3 className="text-3xl mt-5 text-center w-full col-span-full max-[1000px]:text-2xl max-[500px]:text-lg">
+            No products found for specified query
+          </h3>
+        )}
+      </div>
+      <Pagination currentPage={page} totalPages={totalPages} totalCount={totalCount} />
     </div>
   );
 };

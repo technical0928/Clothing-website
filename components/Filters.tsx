@@ -13,7 +13,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSortStore } from "@/app/_zustand/sortStore";
-import { usePaginationStore } from "@/app/_zustand/paginationStore";
 import apiClient from "@/lib/api";
 
 interface InputCategory {
@@ -28,8 +27,9 @@ const Filters = () => {
   const { replace } = useRouter();
   const searchParams = useSearchParams();
 
-  // getting current page number from Zustand store
-  const { page } = usePaginationStore();
+  // Current page comes from the URL (Pagination writes it), so filter changes
+  // preserve the page instead of fighting a separate client-side store.
+  const page = Number(searchParams?.get("page")) > 0 ? Number(searchParams?.get("page")) : 1;
 
   const [inputCategory, setInputCategory] = useState<InputCategory>({
     inStock: { text: "instock", isChecked: true },
@@ -43,23 +43,17 @@ const Filters = () => {
   const [availableColors, setAvailableColors] = useState<string[]>([]);
   const { sortBy } = useSortStore();
 
-  // Load unique sizes/colors from the catalog to build filter options
+  // Load unique sizes/colors via the lightweight options endpoint — it returns
+  // only the distinct values, never the whole catalog, so the filter sidebar
+  // stays fast as the product count grows.
   useEffect(() => {
     let cancelled = false;
-    apiClient.get("/api/products?mode=admin")
+    apiClient.get("/api/products?mode=options")
       .then((res) => res.json())
-      .then((products: any[]) => {
-        if (cancelled || !Array.isArray(products)) return;
-        const sizes = new Set<string>();
-        const colors = new Set<string>();
-        products.forEach((product: any) => {
-          String(product?.sizes || "").split(",").map((s: string) => s.trim()).filter(Boolean)
-            .forEach((s: string) => sizes.add(s));
-          String(product?.colors || "").split(",").map((c: string) => c.trim()).filter(Boolean)
-            .forEach((c: string) => colors.add(c));
-        });
-        setAvailableSizes(Array.from(sizes));
-        setAvailableColors(Array.from(colors));
+      .then((data: any) => {
+        if (cancelled || !data) return;
+        setAvailableSizes(Array.isArray(data.sizes) ? data.sizes : []);
+        setAvailableColors(Array.isArray(data.colors) ? data.colors : []);
       })
       .catch(() => { /* keep filters empty if fetch fails */ });
     return () => { cancelled = true; };

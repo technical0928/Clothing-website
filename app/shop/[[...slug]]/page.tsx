@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import {
   Breadcrumb,
   Filters,
-  Pagination,
   Products,
   SortBy,
 } from "@/components";
@@ -64,7 +63,6 @@ const ShopPage = async ({ params, searchParams }: { params: Promise<{ slug?: str
             </div>
             <div className="divider"></div>
             <Products params={awaitedParams} searchParams={awaitedSearchParams} />
-            <Pagination />
           </div>
         </div>
       </div>

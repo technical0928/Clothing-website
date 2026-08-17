@@ -9,7 +9,7 @@
 // *********************
 
 import React from "react";
-import ProductItem from "./ProductItem";
+import ProductCarousel from "./ProductCarousel";
 import Heading from "./Heading";
 import apiClient from "@/lib/api";
 
@@ -17,9 +17,10 @@ const ProductsSection = async () => {
   let products = [];
   
   try {
-    // sending API request for getting all products
-    // limit=100 so the homepage shows every product (not just the first 12)
-    const data = await apiClient.get("/api/products?limit=100", {
+    // Fetch a bounded batch for the carousel only — never the whole catalog.
+    // As the inventory grows past thousands of products the homepage stays
+    // fast because it still only pulls this small, fixed slice.
+    const data = await apiClient.get("/api/products?limit=12", {
       next: { revalidate: 30, tags: ["products"] },
     });
     
@@ -38,15 +39,13 @@ const ProductsSection = async () => {
 
   return (
     <div className="bg-amber-50 border-t-4 border-white">
-      <div className="max-w-screen-2xl mx-auto pt-20">
+      <div className="max-w-screen-2xl mx-auto pt-20 px-10 max-sm:px-5">
         <Heading title="FEATURED PRODUCTS" />
-        <div className="grid grid-cols-4 justify-items-center max-w-screen-2xl mx-auto py-10 gap-x-2 px-10 gap-y-8 max-xl:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
+        <div className="py-10">
           {products.length > 0 ? (
-            products.map((product: any) => (
-              <ProductItem key={product.id} product={product} color="black" />
-            ))
+            <ProductCarousel products={products} />
           ) : (
-            <div className="col-span-full text-center text-stone-900 py-10">
+            <div className="text-center text-stone-900 py-10">
               <p>No products available at the moment.</p>
             </div>
           )}

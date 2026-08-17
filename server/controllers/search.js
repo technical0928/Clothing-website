@@ -9,27 +9,41 @@ async function searchProducts(request, response) {
 
         const query = String(rawQuery).trim();
 
-        const products = await prisma.product.findMany({
-            where: {
-                OR: [
-                    { title: { contains: query, mode: 'insensitive' } },
-                    { description: { contains: query, mode: 'insensitive' } },
-                    { manufacturer: { contains: query, mode: 'insensitive' } },
-                    { fabric: { contains: query, mode: 'insensitive' } },
-                    { sizes: { contains: query, mode: 'insensitive' } },
-                    { colors: { contains: query, mode: 'insensitive' } },
-                    { category: { name: { contains: query, mode: 'insensitive' } } },
-                ]
-            },
-            include: {
-                category: {
-                    select: {
-                        name: true,
+        // Pagination: search should never pull the whole catalog into memory.
+        const page = Number(request.query.page);
+        const validatedPage = page > 0 ? page : 1;
+        const limit = Number(request.query.limit);
+        const pageSize = limit > 0 && limit <= 100 ? limit : 24;
+
+        const where = {
+            OR: [
+                { title: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } },
+                { manufacturer: { contains: query, mode: 'insensitive' } },
+                { fabric: { contains: query, mode: 'insensitive' } },
+                { sizes: { contains: query, mode: 'insensitive' } },
+                { colors: { contains: query, mode: 'insensitive' } },
+                { category: { name: { contains: query, mode: 'insensitive' } } },
+            ]
+        };
+
+        const [products, totalCount] = await Promise.all([
+            prisma.product.findMany({
+                where,
+                include: {
+                    category: {
+                        select: {
+                            name: true,
+                        },
                     },
                 },
-            },
-        });
+                skip: (validatedPage - 1) * pageSize,
+                take: pageSize,
+            }),
+            prisma.product.count({ where }),
+        ]);
 
+        response.set("X-Total-Count", String(totalCount));
         return response.json(products);
     } catch (error) {
         console.error("Error searching products:", error);

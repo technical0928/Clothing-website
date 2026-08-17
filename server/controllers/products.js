@@ -18,6 +18,22 @@ function tokenMatches(fieldValue, token) {
     .includes(wanted);
 }
 
+// Build a Prisma WHERE clause that matches an EXACT token inside a
+// comma-separated field (sizes: "S,M,L,XL") at the database level, so we
+// never have to pull the whole catalog into memory just to filter. "L" will
+// not match "XL" or "XXL", and the query stays fully paginated.
+function buildExactTokenWhere(field, token) {
+  const wanted = String(token).trim().toLowerCase();
+  return {
+    OR: [
+      { [field]: { equals: wanted, mode: "insensitive" } },
+      { [field]: { startsWith: `${wanted},`, mode: "insensitive" } },
+      { [field]: { contains: `,${wanted},`, mode: "insensitive" } },
+      { [field]: { endsWith: `,${wanted}`, mode: "insensitive" } },
+    ],
+  };
+}
+
 // Security: Input validation functions
 function validateFilterType(filterType) {
   return ALLOWED_FILTER_TYPES.includes(filterType);
@@ -147,6 +163,37 @@ const getAllProducts = asyncHandler(async (request, response) => {
   if (mode === "admin") {
     const adminProducts = await prisma.product.findMany({});
     return response.json(adminProducts);
+  }
+
+  // Lightweight mode for the shop filter sidebar: return only the distinct
+  // sizes/colors, not the whole catalog. Fetching every product just to build
+  // filter chips would get slower as the catalog grows.
+  if (mode === "options") {
+    const rows = await prisma.product.findMany({
+      select: { sizes: true, colors: true },
+    });
+    // Dedupe case-insensitively ("S" vs "s" vs "s ") and keep the first
+    // casing seen, so the filter sidebar shows clean, unique options.
+    const uniqueValues = (values) => {
+      const seen = new Map();
+      for (const raw of values) {
+        const trimmed = String(raw || "").trim();
+        if (!trimmed) continue;
+        const key = trimmed.toLowerCase();
+        if (!seen.has(key)) seen.set(key, trimmed);
+      }
+      return Array.from(seen.values());
+    };
+    const allSizes = [];
+    const allColors = [];
+    for (const row of rows) {
+      allSizes.push(...String(row.sizes || "").split(","));
+      allColors.push(...String(row.colors || "").split(","));
+    }
+    return response.json({
+      sizes: uniqueValues(allSizes),
+      colors: uniqueValues(allColors),
+    });
   } else {
     const dividerLocation = request.url.indexOf("?");
     let filterObj = {};
@@ -279,63 +326,28 @@ const getAllProducts = asyncHandler(async (request, response) => {
         sortObj = {};
     }
 
-    let products;
-    // Exact token matching on comma-separated fields needs post-processing, so
-    // fetch without pagination when a size/color filter is active.
-    const needsTokenFilter = Boolean(sizeFilterValue) || Boolean(colorFilterValue);
-    // Optional limit override (e.g. the homepage asks for all products).
+    // Optional limit override (e.g. the homepage carousel asks for a bounded
+    // batch of products, never the whole catalog).
     const requestedLimit = Number(request.query.limit);
     const pageSize =
       requestedLimit > 0 && requestedLimit <= 100 ? requestedLimit : 12;
-    const findManyOptions = {
-      skip: needsTokenFilter ? undefined : (validatedPage - 1) * 10,
-      take: needsTokenFilter ? undefined : pageSize,
-      include: {
-        category: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    };
 
-    if (Object.keys(sortObj).length > 0) {
-      findManyOptions.orderBy = sortObj;
+    // Build the final WHERE clause. Size/color filters match an EXACT token
+    // at the database level ("L" never matches "XL"), so we never have to
+    // pull the full catalog into memory to post-filter it.
+    const AND = [];
+    if (sizeFilterValue) {
+      AND.push(buildExactTokenWhere("sizes", sizeFilterValue));
+    }
+    if (colorFilterValue) {
+      AND.push(buildExactTokenWhere("colors", colorFilterValue));
     }
 
-    if (Object.keys(filterObj).length === 0) {
-      products = await prisma.product.findMany(findManyOptions);
-    } else if (sizeFilterValue || colorFilterValue) {
-      const extraWhere = {};
-      if (sizeFilterValue) {
-        extraWhere.sizes = { contains: sizeFilterValue };
-      }
-      if (colorFilterValue) {
-        extraWhere.colors = { contains: colorFilterValue };
-      }
-      products = await prisma.product.findMany({
-        ...findManyOptions,
-        where: {
-          ...whereClause,
-          ...extraWhere,
-        },
-      });
-
-      // Post-filter for exact token match (so "L" does not match "XL" or "XXL")
-      products = products.filter(
-        (product) =>
-          (!sizeFilterValue || tokenMatches(product.sizes, sizeFilterValue)) &&
-          (!colorFilterValue || tokenMatches(product.colors, colorFilterValue))
-      );
-
-      // Re-apply pagination after token filtering
-      const start = (validatedPage - 1) * 10;
-      products = products.slice(start, start + pageSize);
-    } else if (categoryFilterValue) {
+    let categoryWhere = {};
+    if (categoryFilterValue) {
       // Resolve the category to its exact id so filtering is precise.
       // (SQLite LIKE used by `contains` is case-insensitive and would match
       //  "women" for "men", so we avoid substring matching entirely.)
-      let categoryWhere;
       if (isValidUUID(categoryFilterValue)) {
         categoryWhere = { categoryId: categoryFilterValue };
       } else {
@@ -353,21 +365,43 @@ const getAllProducts = asyncHandler(async (request, response) => {
         }
         categoryWhere = { categoryId: matchedCategory.id };
       }
-
-      products = await prisma.product.findMany({
-        ...findManyOptions,
-        where: {
-          ...whereClause,
-          ...categoryWhere,
-        },
-      });
-    } else {
-      products = await prisma.product.findMany({
-        ...findManyOptions,
-        where: whereClause,
-      });
     }
 
+    const whereClauseFinal = {
+      ...whereClause,
+      ...categoryWhere,
+      ...(AND.length > 0 ? { AND } : {}),
+    };
+
+    const findManyOptions = {
+      skip: (validatedPage - 1) * pageSize,
+      take: pageSize,
+      include: {
+        category: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    };
+
+    if (Object.keys(sortObj).length > 0) {
+      findManyOptions.orderBy = sortObj;
+    }
+
+    // Run the page query and a cheap COUNT in parallel so the frontend can
+    // render "Page X of Y" without an extra round-trip.
+    const [products, totalCount] = await Promise.all([
+      prisma.product.findMany({
+        ...findManyOptions,
+        where: whereClauseFinal,
+      }),
+      prisma.product.count({
+        where: whereClauseFinal,
+      }),
+    ]);
+
+    response.set("X-Total-Count", String(totalCount));
     return response.json(products);
   }
 });
