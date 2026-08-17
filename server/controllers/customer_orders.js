@@ -328,6 +328,12 @@ async function deleteCustomerOrder(request, response) {
       });
     }
 
+    // Order-product rows reference the order without a cascade, so delete
+    // them first (otherwise the delete fails with a foreign-key constraint).
+    await prisma.customer_order_product.deleteMany({
+      where: { customerOrderId: id },
+    });
+
     await prisma.customer_order.delete({
       where: {
         id: id,
