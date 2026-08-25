@@ -20,6 +20,25 @@ const DashboardUsers = () => {
       });
   }, []);
 
+  const deleteUser = async (user: User) => {
+    if (!confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const response = await apiClient.delete(`/api/users/${user.id}`);
+      if (response.status === 204) {
+        toast.success(`User ${user.email} deleted`);
+        setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Could not delete user");
+      }
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error("Could not delete user");
+    }
+  };
+
   const toggleRole = async (user: User) => {
     const nextRole = user.role === "admin" ? "user" : "admin";
     try {
@@ -137,6 +156,13 @@ const DashboardUsers = () => {
                           {user?.role === "admin"
                             ? "Remove admin"
                             : "Make admin"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteUser(user)}
+                          className="btn btn-xs btn-error btn-outline"
+                        >
+                          Delete
                         </button>
                       </div>
                     </th>
