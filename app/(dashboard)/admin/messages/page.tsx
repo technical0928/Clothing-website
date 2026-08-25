@@ -37,6 +37,7 @@ const DashboardMessages = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchMessages = async () => {
     setLoading(true);
@@ -67,27 +68,30 @@ const DashboardMessages = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  const toggleRead = async (message: ContactMessage) => {
+  const markAsRead = async (message: ContactMessage) => {
+    if (message.isRead) return;
     try {
       const res = await apiClient.patch(`/api/contact/${message.id}`, {
-        isRead: !message.isRead,
+        isRead: true,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "Could not update message");
-        return;
-      }
+      if (!res.ok) return;
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === message.id ? { ...m, isRead: !message.isRead } : m
+          m.id === message.id ? { ...m, isRead: true } : m
         )
       );
-      setUnreadCount((count) =>
-        message.isRead ? count + 1 : Math.max(0, count - 1)
-      );
+      setUnreadCount((count) => Math.max(0, count - 1));
     } catch (error) {
-      console.error("Update message failed:", error);
-      toast.error("Could not update message");
+      console.error("Mark read failed:", error);
+    }
+  };
+
+  const toggleExpand = async (message: ContactMessage) => {
+    const isExpanding = expandedId !== message.id;
+    setExpandedId(isExpanding ? message.id : null);
+    // WhatsApp-style: auto-mark as read when opening
+    if (isExpanding && !message.isRead) {
+      await markAsRead(message);
     }
   };
 
@@ -199,25 +203,27 @@ const DashboardMessages = () => {
                         href={`mailto:${message.email}?subject=Re: Your message to Noor-e-Multan`}
                         className="btn btn-ghost btn-xs"
                         title="Reply by email"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <FaReply />
                         Reply
                       </a>
                       <button
                         type="button"
-                        onClick={() => toggleRead(message)}
-                        className={`btn btn-xs ${
-                          message.isRead
-                            ? "btn-ghost"
-                            : "bg-amber-600 text-white border-amber-600 hover:bg-amber-700"
-                        }`}
-                        title={message.isRead ? "Mark as unread" : "Mark as read"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpand(message);
+                        }}
+                        className="btn btn-xs btn-ghost"
                       >
-                        {message.isRead ? "Mark unread" : "Mark read"}
+                        {expandedId === message.id ? "Close" : "Open"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeMessage(message.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeMessage(message.id);
+                        }}
                         className="btn btn-error btn-outline btn-xs"
                         title="Delete message"
                       >
@@ -225,9 +231,16 @@ const DashboardMessages = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="mt-4 whitespace-pre-wrap leading-7 text-stone-700">
-                    {message.message}
-                  </p>
+                  {/* Preview when collapsed, full message when expanded */}
+                  {expandedId === message.id ? (
+                    <p className="mt-4 whitespace-pre-wrap leading-7 text-stone-700">
+                      {message.message}
+                    </p>
+                  ) : (
+                    <p className="mt-2 truncate text-sm text-stone-500">
+                      {message.message}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
