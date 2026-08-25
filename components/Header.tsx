@@ -205,13 +205,9 @@ const Header = () => {
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  <Image
-                    src="/randomuser.jpg"
-                    alt="admin profile photo"
-                    width={30}
-                    height={30}
-                    className="w-full h-full rounded-full"
-                  />
+                  <div className="w-10 h-10 rounded-full bg-stone-200 flex items-center justify-center text-stone-600 font-semibold text-sm">
+                    {((session as any)?.user?.email?.[0] || "A").toUpperCase()}
+                  </div>
                 )}
               </div>
               <ul
