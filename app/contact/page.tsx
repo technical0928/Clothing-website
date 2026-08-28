@@ -28,8 +28,8 @@ const CONTACT_INFO = [
   {
     icon: FaEnvelope,
     label: "Email us",
-    value: "technicalsothikhan0928@gmail.com",
-    href: "mailto:technicalsothikhan0928@gmail.com",
+    value: "noormultan0928@gmail.com",
+    href: "mailto:noormultan0928@gmail.com",
   },
   {
     icon: FaInstagram,

@@ -40,7 +40,7 @@ const SearchInput = () => {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Search products, brands, fabrics..."
-          className="bg-gray-50 input input-bordered w-full rounded-r-none pl-10 outline-none focus:outline-none"
+          className="bg-gray-50 input input-bordered w-full rounded-r-none pl-10 outline-none focus:outline-none dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 dark:placeholder-stone-400"
         />
       </div>
       <button
