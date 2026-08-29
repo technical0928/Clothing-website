@@ -88,7 +88,6 @@ const ProductCarousel = ({
       moved: false,
     };
     setIsPaused(true);
-    el.setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {

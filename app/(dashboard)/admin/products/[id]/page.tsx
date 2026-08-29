@@ -134,7 +134,7 @@ export default function DashboardProductDetails({ params }: any) {
           () => undefined
         );
         toast.success("Product successfully updated");
-        router.refresh();
+        router.push("/admin/products");
       } else {
         const errorData = await response.json();
         toast.error(

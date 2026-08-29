@@ -10,8 +10,10 @@ import { compressImage } from "@/lib/compressImage";
 import { ProductImageItem } from "@/lib/productImages";
 import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const AddNewProduct = () => {
+  const router = useRouter();
   const [product, setProduct] = useState<{
     title: string;
     price: string;
@@ -142,22 +144,7 @@ const AddNewProduct = () => {
           () => undefined
         );
         toast.success("Product added successfully");
-        setProductImages([]);
-        setProduct({
-          title: "",
-          price: "",
-          salePrice: "",
-          discountPercent: "",
-          manufacturer: "Noor-e-Multan",
-          inStock: 1,
-          mainImage: "",
-          description: "",
-          slug: "",
-          categoryId: categories[0]?.id || "",
-          sizes: "",
-          colors: "",
-          fabric: "",
-        });
+        router.push("/admin/products");
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || errorData.message || "Failed to add product");
