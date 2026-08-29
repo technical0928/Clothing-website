@@ -559,6 +559,10 @@ const createProduct = asyncHandler(async (request, response) => {
     throw new AppError("Missing required field: categoryId", 400);
   }
 
+  if (!mainImage || typeof mainImage !== "string" || mainImage.trim() === "") {
+    throw new AppError("At least one product image is required", 400);
+  }
+
   const merchant = merchantId
     ? await prisma.merchant.findUnique({ where: { id: merchantId } })
     : await getOrCreateDefaultMerchant();

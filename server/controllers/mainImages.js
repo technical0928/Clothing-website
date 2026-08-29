@@ -1,7 +1,7 @@
-const { PrismaClient } = require("@prisma/client");
 const prisma = require("../utills/db"); // ✅ Use shared connection
 const fs = require('fs');
 const path = require('path');
+const { validateUploadedFile } = require("../utills/imageValidation");
 
 // Uploads live in public/uploads/ locally. On Vercel the filesystem is
 // read-only outside /tmp, so uploaded files are ALSO persisted in the Neon
@@ -38,11 +38,14 @@ const sanitizeFileName = (originalName) => {
 
 async function uploadMainImage(req, res) {
     if (!req.files || Object.keys(req.files).length === 0) {
-      return res.status(400).json({ message: "Nema otpremljenih fajlova" });
+      return res.status(400).json({ message: "No file uploaded" });
     }
   
-    // Get file from a request
     const uploadedFile = req.files.uploadedFile;
+    const validationError = validateUploadedFile(uploadedFile);
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
 
     // Save under a safe, unique filename in the uploads directory
     const finalFileName = sanitizeFileName(uploadedFile.name);

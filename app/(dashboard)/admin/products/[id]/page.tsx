@@ -1,6 +1,5 @@
 "use client";
-import { CustomButton, DashboardSidebar, SectionTitle } from "@/components";
-import Image from "next/image";
+import { DashboardSidebar, ProductImageUpload } from "@/components";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -13,6 +12,7 @@ import config from "@/lib/config";
 import { parsePriceInput } from "@/lib/price";
 import { computeSalePrice, computeDiscountPercent } from "@/lib/discount";
 import { compressImage } from "@/lib/compressImage";
+import { ProductImageItem } from "@/lib/productImages";
 
 export default function DashboardProductDetails({ params }: any) {
   const id = params?.id;
@@ -22,10 +22,8 @@ export default function DashboardProductDetails({ params }: any) {
   const [discountPercent, setDiscountPercent] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>();
   const [otherImages, setOtherImages] = useState<OtherImages[]>([]);
-  const [galleryUploading, setGalleryUploading] = useState(false);
-  const [uploadState, setUploadState] = useState<
-    "idle" | "uploading" | "done" | "failed"
-  >("idle");
+  const [productImages, setProductImages] = useState<ProductImageItem[]>([]);
+  const [imagesInitialized, setImagesInitialized] = useState(false);
   const router = useRouter();
 
   // functionality for deleting product
@@ -54,6 +52,29 @@ export default function DashboardProductDetails({ params }: any) {
       });
   };
 
+  const syncGalleryImages = async (doneImages: ProductImageItem[]) => {
+    const galleryPaths = doneImages.slice(1).map((img) => img.fileName);
+    const existingPaths = new Set(otherImages.map((img) => img.image));
+    const keptPaths = new Set(galleryPaths);
+
+    for (const existing of otherImages) {
+      if (!keptPaths.has(existing.image)) {
+        await apiClient.delete(`/api/images/${existing.imageID}`);
+      }
+    }
+
+    for (const path of galleryPaths) {
+      if (!existingPaths.has(path)) {
+        await apiClient.post("/api/images", {
+          productID: id,
+          image: path,
+        });
+      }
+    }
+
+    await refreshGalleryImages();
+  };
+
   // functionality for updating product
   const updateProduct = async () => {
     const parsedPrice = parsePriceInput(priceInput);
@@ -70,14 +91,22 @@ export default function DashboardProductDetails({ params }: any) {
       return;
     }
 
-    // If the user picked a new image, it must have uploaded successfully
-    // before we update — otherwise the product would have a broken image.
-    if (uploadState === "uploading") {
-      toast.error("Image is still uploading — please wait a moment");
+    const doneImages = productImages.filter(
+      (img) => img.status === "done" && img.fileName
+    );
+
+    if (doneImages.length === 0) {
+      toast.error("At least one product image is required");
       return;
     }
-    if (uploadState === "failed") {
-      toast.error("Image upload failed — please select the image again");
+
+    if (productImages.some((img) => img.status === "uploading")) {
+      toast.error("Images are still uploading — please wait a moment");
+      return;
+    }
+
+    if (productImages.some((img) => img.status === "failed")) {
+      toast.error("Some images failed to upload — remove them and try again");
       return;
     }
 
@@ -87,6 +116,7 @@ export default function DashboardProductDetails({ params }: any) {
         : Number(parseFloat(discountPercent));
       const payload = {
         ...product,
+        mainImage: doneImages[0].fileName,
         price: parsedPrice,
         salePrice: computeSalePrice(parsedPrice, discountNumber),
       };
@@ -94,6 +124,7 @@ export default function DashboardProductDetails({ params }: any) {
 
       if (response.status === 200) {
         const updatedProduct = await response.json();
+        await syncGalleryImages(doneImages);
         setProduct(updatedProduct);
         setPriceInput(updatedProduct?.price?.toString() ?? "");
         setDiscountPercent(
@@ -116,12 +147,8 @@ export default function DashboardProductDetails({ params }: any) {
     }
   };
 
-  // functionality for uploading main image file
-  const uploadFile = async (file: any): Promise<string> => {
-    setUploadState("uploading");
-
-    // Compress large phone photos so the upload always succeeds quickly.
-    let payload: any = file;
+  const uploadFile = useCallback(async (file: File): Promise<string> => {
+    let payload: File = file;
     try {
       payload = await compressImage(file);
     } catch (error) {
@@ -131,33 +158,21 @@ export default function DashboardProductDetails({ params }: any) {
     const formData = new FormData();
     formData.append("uploadedFile", payload);
 
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
-        method: "POST",
-        body: formData,
-      });
+    const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
+      method: "POST",
+      body: formData,
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Main image uploaded:", data);
-        // Server sanitizes the filename — use the returned name
-        if (data?.fileName) {
-          setUploadState("done");
-          return data.fileName;
-        }
-      } else {
-        toast.error("File upload unsuccessful.");
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.fileName) {
+        return data.fileName;
       }
-    } catch (error) {
-      console.error("There was an error while during request sending:", error);
-      toast.error("There was an error during request sending");
     }
 
-    setUploadState("failed");
-    // IMPORTANT: never fall back to the local file name — a raw filename
-    // can't be served by the API and would show as a broken image forever.
-    return "";
-  };
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || "Upload failed");
+  }, []);
 
   // refresh the gallery image list for this product
   const refreshGalleryImages = useCallback(async () => {
@@ -168,68 +183,26 @@ export default function DashboardProductDetails({ params }: any) {
     setOtherImages(Array.isArray(images) ? images : []);
   }, [id]);
 
-  // functionality for uploading a gallery image (file upload + DB record)
-  const uploadGalleryImage = async (file: any) => {
-    const formData = new FormData();
-    formData.append("uploadedFile", file);
+  useEffect(() => {
+    if (imagesInitialized || !product?.mainImage) return;
 
-    setGalleryUploading(true);
-    try {
-      const uploadResponse = await fetch(`${config.apiBaseUrl}/api/main-image`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!uploadResponse.ok) {
-        toast.error("File upload unsuccessful.");
-        return;
-      }
+    setProductImages([
+      {
+        localId: "main",
+        fileName: product.mainImage,
+        previewUrl: `/${product.mainImage}`,
+        status: "done",
+      },
+      ...otherImages.map((img) => ({
+        localId: img.imageID,
+        fileName: img.image,
+        previewUrl: `/${img.image}`,
+        status: "done" as const,
+      })),
+    ]);
+    setImagesInitialized(true);
+  }, [product?.mainImage, otherImages, imagesInitialized]);
 
-      const uploadData = await uploadResponse.json();
-      // Server sanitizes the filename — use the returned name for the DB record
-      const savedName = uploadData?.fileName || file.name;
-
-      const createResponse = await apiClient.post("/api/images", {
-        productID: id,
-        image: savedName,
-      });
-      if (!createResponse.ok) {
-        toast.error("Failed to add image to gallery");
-        return;
-      }
-
-      await refreshGalleryImages();
-      await fetch("/api/admin/revalidate-products", { method: "POST" }).catch(
-        () => undefined
-      );
-      toast.success("Gallery image added");
-    } catch (error) {
-      console.error("Error uploading gallery image:", error);
-      toast.error("There was an error during request sending");
-    } finally {
-      setGalleryUploading(false);
-    }
-  };
-
-  // functionality for deleting a single gallery image
-  const deleteGalleryImage = async (imageID: string) => {
-    try {
-      const response = await apiClient.delete(`/api/images/${imageID}`);
-      if (response.status !== 204) {
-        toast.error("Failed to delete image");
-        return;
-      }
-      await refreshGalleryImages();
-      await fetch("/api/admin/revalidate-products", { method: "POST" }).catch(
-        () => undefined
-      );
-      toast.success("Gallery image removed");
-    } catch (error) {
-      console.error("Error deleting gallery image:", error);
-      toast.error("There was an error while deleting image");
-    }
-  };
-
-  // fetching main product data including other product images
   const fetchProductData = useCallback(async () => {
     apiClient
       .get(`/api/products/${id}`, { cache: "no-store" })
@@ -342,7 +315,7 @@ export default function DashboardProductDetails({ params }: any) {
             />
           </label>
           {discountPercent.trim() !== "" && (
-            <p className="text-sm mt-1 text-emerald-600 font-medium">
+            <p className="text-sm mt-1 text-emerald-600 dark-sale-text font-medium">
               Sale price (auto): PKR{" "}
               {product?.salePrice
                 ? Number(product.salePrice).toLocaleString()
@@ -493,99 +466,13 @@ export default function DashboardProductDetails({ params }: any) {
         </div>
         {/* Product category select input div - end */}
 
-        {/* Main image file upload div - start */}
-        <div>
-          <input
-            type="file"
-            accept="image/*"
-            className="file-input file-input-bordered file-input-lg w-full max-w-sm"
-            onChange={(e) => {
-              // @ts-ignore
-              const selectedFile = e.target.files[0];
+        {/* Product images */}
+        <ProductImageUpload
+          images={productImages}
+          onChange={setProductImages}
+          onUploadFile={uploadFile}
+        />
 
-              if (selectedFile) {
-                uploadFile(selectedFile).then((savedName) => {
-                  setProduct((current) => ({
-                    ...current!,
-                    mainImage: savedName,
-                  }));
-                });
-              }
-            }}
-          />
-          {uploadState === "uploading" && (
-            <p className="text-sm mt-2 text-stone-500">
-              Uploading image…
-            </p>
-          )}
-          {uploadState === "failed" && (
-            <p className="text-sm mt-2 text-red-600 font-medium">
-              Image upload failed — please select the image again.
-            </p>
-          )}
-          {product?.mainImage && (
-            <Image
-              src={`/` + product?.mainImage}
-              alt={product?.title}
-              className="w-auto h-auto mt-2"
-              width={100}
-              height={100}
-            />
-          )}
-        </div>
-        {/* Main image file upload div - end */}
-        {/* Other images file upload div - start */}
-        <div>
-          <label className="form-control w-full max-w-sm">
-            <div className="label">
-              <span className="label-text">Gallery images (shown on the product page):</span>
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              disabled={galleryUploading}
-              className="file-input file-input-bordered file-input-md w-full max-w-sm disabled:cursor-not-allowed"
-              onChange={(e: any) => {
-                const selectedFile = e.target.files?.[0];
-                if (selectedFile) {
-                  uploadGalleryImage(selectedFile);
-                }
-                e.target.value = "";
-              }}
-            />
-          </label>
-          {otherImages && otherImages.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-3">
-              {otherImages.map((image) => (
-                <div
-                  key={image.imageID}
-                  className="group relative overflow-hidden rounded-md border border-stone-200 bg-stone-50"
-                >
-                  <Image
-                    src={`/${image.image}`}
-                    alt="product gallery image"
-                    width={100}
-                    height={100}
-                    className="w-auto h-auto"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove gallery image"
-                    onClick={() => deleteGalleryImage(image.imageID)}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow hover:bg-red-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-stone-500">
-              No gallery images yet. Upload images above to show them on the product page.
-            </p>
-          )}
-        </div>
-        {/* Other images file upload div - end */}
         {/* Product description div - start */}
         <div>
           <label className="form-control">

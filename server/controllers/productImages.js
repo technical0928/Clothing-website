@@ -1,4 +1,5 @@
 const prisma = require("../utills/db");
+const { MAX_GALLERY_IMAGES, validateUploadedFile } = require("../utills/imageValidation");
 
 async function getSingleProductImages(request, response) {
   const { id } = request.params;
@@ -14,6 +15,23 @@ async function getSingleProductImages(request, response) {
 async function createImage(request, response) {
   try {
     const { productID, image } = request.body;
+
+    if (!productID || !image) {
+      return response.status(400).json({ error: "productID and image are required" });
+    }
+
+    const product = await prisma.product.findUnique({ where: { id: productID } });
+    if (!product) {
+      return response.status(404).json({ error: "Product not found" });
+    }
+
+    const existingCount = await prisma.image.count({ where: { productID } });
+    if (existingCount >= MAX_GALLERY_IMAGES) {
+      return response.status(400).json({
+        error: `Maximum ${MAX_GALLERY_IMAGES} gallery images allowed (${MAX_GALLERY_IMAGES + 1} total including main image)`,
+      });
+    }
+
     const createImage = await prisma.image.create({
       data: {
         productID,

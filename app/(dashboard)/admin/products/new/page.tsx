@@ -1,5 +1,5 @@
 "use client";
-import { DashboardSidebar } from "@/components";
+import { DashboardSidebar, ProductImageUpload } from "@/components";
 import apiClient from "@/lib/api";
 import config from "@/lib/config";
 import { convertCategoryNameToURLFriendly as convertSlugToURLFriendly } from "@/utils/categoryFormating";
@@ -7,8 +7,8 @@ import { sanitizeFormData } from "@/lib/form-sanitize";
 import { parsePriceInput } from "@/lib/price";
 import { computeSalePrice } from "@/lib/discount";
 import { compressImage } from "@/lib/compressImage";
-import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import { ProductImageItem } from "@/lib/productImages";
+import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 const AddNewProduct = () => {
@@ -44,18 +44,34 @@ const AddNewProduct = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(true);
   const [categoryLoadError, setCategoryLoadError] = useState<string | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [uploadState, setUploadState] = useState<
-    "idle" | "uploading" | "done" | "failed"
-  >("idle");
+  const [productImages, setProductImages] = useState<ProductImageItem[]>([]);
 
-  useEffect(() => {
-    console.log("[DEBUG] product state", product);
-    if (typeof window !== "undefined") {
-      (window as any).productStateDebug = product;
+  const uploadFile = useCallback(async (file: File): Promise<string> => {
+    let payload: File = file;
+    try {
+      payload = await compressImage(file);
+    } catch (error) {
+      console.error("[uploadFile] compression failed, sending original:", error);
     }
-  }, [product]);
+
+    const formData = new FormData();
+    formData.append("uploadedFile", payload);
+
+    const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.fileName) {
+        return data.fileName;
+      }
+    }
+
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || "Upload failed");
+  }, []);
 
   const addProduct = async () => {
     const finalSlug = product.slug.trim() || convertSlugToURLFriendly(product.title.trim());
@@ -73,52 +89,60 @@ const AddNewProduct = () => {
       return;
     }
 
-    // If the user picked an image, it must have uploaded successfully
-    // before we save — otherwise the product would have a broken image.
-    if (selectedImageFile && uploadState === "uploading") {
-      toast.error("Image is still uploading — please wait a moment");
+    const doneImages = productImages.filter(
+      (img) => img.status === "done" && img.fileName
+    );
+
+    if (doneImages.length === 0) {
+      toast.error("Please upload at least one product image");
       return;
     }
-    if (selectedImageFile && uploadState === "failed") {
-      toast.error("Image upload failed — please select the image again");
+
+    if (productImages.some((img) => img.status === "uploading")) {
+      toast.error("Images are still uploading — please wait a moment");
       return;
     }
-    if (selectedImageFile && !product.mainImage) {
-      toast.error("Image upload failed — please select the image again");
+
+    if (productImages.some((img) => img.status === "failed")) {
+      toast.error("Some images failed to upload — remove them and try again");
       return;
     }
 
     try {
-      // Compute the sale price from the discount percentage (e.g. 40% off)
       const discountNumber = product.discountPercent.trim() === ""
         ? null
         : Number(parseFloat(product.discountPercent));
       const parsedSalePrice = computeSalePrice(parsedPrice, discountNumber);
+
+      const [primaryImage, ...galleryImages] = doneImages.map((img) => img.fileName);
 
       const productToSend = {
         ...product,
         slug: finalSlug,
         price: parsedPrice,
         salePrice: parsedSalePrice,
+        mainImage: primaryImage,
         discountPercent: undefined,
       };
 
-      // Sanitize form data before sending to API
       const sanitizedProduct = sanitizeFormData(productToSend);
-
-      console.log("Sending product data:", sanitizedProduct);
-
       const response = await apiClient.post(`/api/products`, sanitizedProduct);
 
       if (response.status === 201) {
         const data = await response.json();
-        console.log("Product created successfully:", data);
+
+        for (const galleryPath of galleryImages) {
+          await apiClient.post("/api/images", {
+            productID: data.id,
+            image: galleryPath,
+          });
+        }
+
         await fetch("/api/admin/revalidate-products", { method: "POST" }).catch(
           () => undefined
         );
         toast.success("Product added successfully");
-        setUploadState("idle");
-        setSelectedImageFile(null);
+        setProductImages([]);
         setProduct({
           title: "",
           price: "",
@@ -136,7 +160,6 @@ const AddNewProduct = () => {
         });
       } else {
         const errorData = await response.json();
-        console.error("Failed to create product:", errorData);
         toast.error(errorData.error || errorData.message || "Failed to add product");
       }
     } catch (error) {
@@ -144,61 +167,6 @@ const AddNewProduct = () => {
       toast.error("Network error. Please try again.");
     }
   };
-
-
-  const uploadFile = async (file: File): Promise<string> => {
-    setSelectedImageFile(file);
-    setUploadState("uploading");
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreviewUrl(previewUrl);
-
-    // Compress large phone photos so the upload always succeeds quickly.
-    let payload: File = file;
-    try {
-      payload = await compressImage(file);
-    } catch (error) {
-      console.error("[uploadFile] compression failed, sending original:", error);
-    }
-
-    const formData = new FormData();
-    formData.append("uploadedFile", payload);
-
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/api/main-image`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("File uploaded successfully", data);
-        // The server sanitizes the filename (safe for the web server),
-        // so use the returned name instead of the original file name.
-        if (data?.fileName) {
-          setUploadState("done");
-          return data.fileName;
-        }
-      }
-      console.error("File upload unsuccessful", response.status, response.statusText);
-      toast.error("Image upload failed — please select the image again");
-    } catch (error) {
-      console.error("Error happened while sending request:", error);
-      toast.error("Image upload failed — check your connection and try again");
-    }
-
-    setUploadState("failed");
-    // IMPORTANT: never fall back to the local file name — a raw filename
-    // can't be served by the API and would show as a broken image forever.
-    return "";
-  };
-
-  useEffect(() => {
-    return () => {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-    };
-  }, [imagePreviewUrl]);
 
   const fetchCategories = async () => {
     setCategoryLoading(true);
@@ -212,7 +180,7 @@ const AddNewProduct = () => {
         ...prev,
         categoryId: prev.categoryId || data?.[0]?.id || "",
       }));
-    } catch (error) {
+    } catch {
       setCategoryLoadError("Failed to load categories");
       toast.error("Failed to load categories");
     } finally {
@@ -224,10 +192,20 @@ const AddNewProduct = () => {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      productImages.forEach((img) => {
+        if (img.previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(img.previewUrl);
+        }
+      });
+    };
+  }, [productImages]);
+
   return (
     <div className="bg-white flex justify-start max-w-screen-2xl mx-auto xl:h-full max-xl:flex-col max-xl:gap-y-5">
       <DashboardSidebar />
-      <div className="flex flex-col gap-y-7 xl:ml-5 max-xl:px-5 w-full">
+      <div className="flex flex-col gap-y-7 xl:ml-5 max-xl:px-5 w-full pb-10">
         <h1 className="text-3xl font-semibold">Add new product</h1>
 
         <div>
@@ -344,7 +322,7 @@ const AddNewProduct = () => {
             />
           </label>
           {product.discountPercent.trim() !== "" && (
-            <p className="text-sm mt-1 text-emerald-600 font-medium">
+            <p className="text-sm mt-1 text-emerald-600 dark-sale-text font-medium">
               Sale price (auto): PKR{" "}
               {product.salePrice === "" ? "—" : Number(product.salePrice).toLocaleString()}
             </p>
@@ -366,7 +344,6 @@ const AddNewProduct = () => {
           </label>
         </div>
 
-        {/* Sizes field — comma-separated values */}
         <div>
           <label className="form-control w-full max-w-xs">
             <div className="label">
@@ -384,7 +361,6 @@ const AddNewProduct = () => {
           </label>
         </div>
 
-        {/* Colors field — comma-separated values */}
         <div>
           <label className="form-control w-full max-w-xs">
             <div className="label">
@@ -438,51 +414,13 @@ const AddNewProduct = () => {
             />
           </label>
         </div>
-        <div>
-          <input
-            type="file"
-            accept="image/*"
-            className="file-input file-input-bordered file-input-lg w-full max-w-sm"
-            onChange={(e: any) => {
-              const selectedFile = e.target.files?.[0];
-              if (!selectedFile) return;
 
-              setSelectedImageFile(selectedFile);
-              uploadFile(selectedFile).then((savedName) => {
-                setProduct((current) => ({
-                  ...current,
-                  mainImage: savedName,
-                }));
-              });
-            }}
-          />
-          {uploadState === "uploading" && (
-            <p className="text-sm mt-2 text-stone-500">
-              Uploading image…
-            </p>
-          )}
-          {uploadState === "failed" && (
-            <p className="text-sm mt-2 text-red-600 font-medium">
-              Image upload failed — please select the image again.
-            </p>
-          )}
-          {imagePreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imagePreviewUrl}
-              alt="Selected product preview"
-              className="w-32 h-32 object-cover mt-3 rounded-lg"
-            />
-          ) : product.mainImage ? (
-            <Image
-              src={`/${product.mainImage}`}
-              alt={product.title || "Product image"}
-              className="w-auto h-auto mt-2"
-              width={100}
-              height={100}
-            />
-          ) : null}
-        </div>
+        <ProductImageUpload
+          images={productImages}
+          onChange={setProductImages}
+          onUploadFile={uploadFile}
+        />
+
         <div>
           <label className="form-control">
             <div className="label">
