@@ -24,6 +24,12 @@ const ProductImageUpload = ({
 }: ProductImageUploadProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  // Clear the file input when parent resets images to empty
+  React.useEffect(() => {
+    if (images.length === 0 && inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }, [images.length]);
 
   const atMax = images.length >= MAX_PRODUCT_IMAGES;
   const isUploading = images.some((img) => img.status === "uploading");
