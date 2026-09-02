@@ -41,7 +41,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = "" }) =
       {/* Notification Bell Button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-700"
+        className="relative p-2 text-stone-700 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:text-stone-300 dark:hover:text-amber-400 dark:hover:bg-stone-700"
         aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
       >
         <FaBell className="w-6 h-6" />

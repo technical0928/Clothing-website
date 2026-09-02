@@ -40,7 +40,7 @@ const ThemeToggle = () => {
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Light mode" : "Dark mode"}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 shadow-sm transition-all duration-200 hover:scale-105 hover:border-amber-500 hover:text-amber-600 dark:border-stone-700 dark:bg-stone-800 dark:text-amber-400"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-800 shadow-sm transition-all duration-200 hover:scale-105 hover:border-amber-500 hover:text-amber-600 dark:border-stone-600 dark:bg-stone-800 dark:text-amber-400 dark:hover:text-amber-300"
     >
       {isDark ? <FaSun className="h-5 w-5" /> : <FaMoon className="h-5 w-5" />}
     </button>
