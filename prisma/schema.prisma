@@ -66,6 +66,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   // Back relation for bulk upload batches
   bulkUploadBatches bulk_upload_batch[] @relation("UserBatches")
+  orders            Customer_order[]
 }
 
 model PasswordResetToken {
@@ -100,7 +101,9 @@ model Customer_order {
   total       Int
   paymentMethod String?
   paymentStatus String?
-  products    customer_order_product[]
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  products     customer_order_product[]
 }
 
 model customer_order_product {

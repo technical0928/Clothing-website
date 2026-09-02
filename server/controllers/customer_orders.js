@@ -80,7 +80,8 @@ async function createCustomerOrder(request, response) {
         total: validatedData.total,
         paymentMethod: validatedData.paymentMethod,
         paymentStatus: validatedData.paymentStatus,
-        dateTime: new Date()
+        dateTime: new Date(),
+        userId: request.body.userId || null
       },
     });
 
@@ -529,10 +530,20 @@ async function getOrdersByEmail(request, response) {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
+    // Find the user by email to also check orders linked by userId
+    let userId = null;
+    try {
+      const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+      if (user) userId = user.id;
+    } catch (_) {}
+
+    // Query by email OR by userId (to catch orders placed when logged in)
+    const whereClause = userId
+      ? { OR: [{ email: normalizedEmail }, { userId }] }
+      : { email: normalizedEmail };
+
     const orders = await prisma.customer_order.findMany({
-      where: {
-        email: normalizedEmail,
-      },
+      where: whereClause,
       orderBy: {
         dateTime: 'desc',
       },

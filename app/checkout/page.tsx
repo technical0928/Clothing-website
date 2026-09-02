@@ -29,6 +29,14 @@ const CheckoutPage = () => {
   const { products, total, clearCart, buyNowItem, clearBuyNowItem } = useProductStore();
   // When "Buy Now" was clicked, checkout ONLY that item (it is not in the cart)
   const checkoutItems = buyNowItem ? [buyNowItem] : products;
+  useEffect(() => {
+    if (session?.user?.email) {
+      setCheckoutForm(prev => ({
+        ...prev,
+        email: prev.email || session?.user?.email || '',
+      }));
+    }
+  }, [session?.user?.email]);
   const checkoutTotal = buyNowItem ? buyNowItem.price * buyNowItem.amount : total;
   const router = useRouter();
   // Set once the order has been placed so the empty-cart guard below
@@ -169,7 +177,7 @@ const CheckoutPage = () => {
         paymentMethod,
         paymentStatus: "pending",
         total: checkoutTotal,
-        userId: userId // Add user ID for notifications
+        userId: userId
       };
 
       console.log("📋 Order data being sent:", orderData);
@@ -536,7 +544,8 @@ const CheckoutPage = () => {
                     name="email-address"
                     autoComplete="email"
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !!session?.user?.email}
+                    readOnly={!!session?.user?.email}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
